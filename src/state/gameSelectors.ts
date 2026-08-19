@@ -1,17 +1,13 @@
-import { facilityDefinitionById } from '../content/facilities/facilities'
 import { tierDefinitionById } from '../content/tiers/tiers'
+import { getPopulationCapacity, getPopulationTotal } from '../engine/population/populationMetrics'
 import type { GameState } from '../types/game'
 
 export function selectPopulationTotal(state: GameState): number {
-  return state.population.reduce((total, group) => total + group.count, 0)
+  return getPopulationTotal(state)
 }
 
 export function selectPopulationCapacity(state: GameState): number {
-  return Object.values(state.dungeon.rooms).reduce((capacity, room) => {
-    const definition = facilityDefinitionById[room.definitionId]
-    const level = definition?.levels.find((item) => item.level === room.level)
-    return capacity + (level?.populationCapacity ?? 0)
-  }, 0)
+  return getPopulationCapacity(state)
 }
 
 export function selectCurrentTier(state: GameState) {

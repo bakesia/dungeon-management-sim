@@ -2,6 +2,7 @@ import type { GameState } from '../../types/game'
 import { applyEffect } from '../effects/applyEffects'
 import { processEventRoll } from '../events/processEvents'
 import { defaultRandomSource, type RandomSource } from '../random'
+import { processInvasionRoll } from '../invasion/processInvasion'
 import { processDailyProduction } from './processDailyProduction'
 import { processFoodConsumption } from './processFoodConsumption'
 import { processMaintenance } from './processMaintenance'
@@ -34,15 +35,12 @@ export function advanceDay(state: GameState, context: AdvanceDayContext = {}): G
   nextState = processMaintenance(nextState, now)
   nextState = processPopulationState(nextState)
   nextState = processEventRoll(nextState, randomSource, now)
-  nextState = processProgression(nextState)
+  nextState = processInvasionRoll(nextState, randomSource, now)
+  nextState = processProgression(nextState, now)
 
   nextState = {
     ...nextState,
     day: nextState.day + 1,
-    invasion: {
-      ...nextState.invasion,
-      daysSinceLastInvasion: nextState.invasion.daysSinceLastInvasion + 1,
-    },
     statistics: {
       ...nextState.statistics,
       totalDaysPlayed: nextState.statistics.totalDaysPlayed + 1,
@@ -52,6 +50,8 @@ export function advanceDay(state: GameState, context: AdvanceDayContext = {}): G
       updatedAt: now.toISOString(),
     },
   }
+
+  if (nextState.status !== 'playing') return nextState
 
   return applyEffect(nextState, {
     type: 'addLog',

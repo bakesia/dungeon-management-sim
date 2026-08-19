@@ -59,9 +59,18 @@ function normalizeDungeon(value: UnknownRecord, saveVersion: number): GameState[
   const rawTiles = isRecord(value.tiles) ? value.tiles : null
   if (!rawTiles) throw new Error('Invalid save: dungeon tiles are malformed.')
 
-  if (saveVersion === 2) {
+  if (saveVersion === 3) {
     if (!isRecord(value.rooms)) throw new Error('Invalid save: dungeon rooms are malformed.')
     return value as unknown as GameState['dungeon']
+  }
+
+  if (saveVersion === 2) {
+    if (!isRecord(value.rooms)) throw new Error('Invalid save: dungeon rooms are malformed.')
+    const rooms = Object.fromEntries(Object.entries(value.rooms).map(([instanceId, rawRoom]) => {
+      if (!isRecord(rawRoom)) throw new Error(`Invalid save: dungeon room "${instanceId}" is malformed.`)
+      return [instanceId, { ...rawRoom, condition: 'normal' }]
+    })) as GameState['dungeon']['rooms']
+    return { tiles: value.tiles as GameState['dungeon']['tiles'], rooms }
   }
 
   const tiles: Record<string, DungeonTile> = {}
@@ -91,6 +100,7 @@ function normalizeDungeon(value: UnknownRecord, saveVersion: number): GameState[
           ? rawFacility.assignedWorkers as FacilityInstance['assignedWorkers']
           : {},
         durability: typeof rawFacility.durability === 'number' ? rawFacility.durability : 100,
+        condition: 'normal',
         tileId: id,
       }
     }
@@ -104,8 +114,8 @@ export function migrateSaveData(value: unknown): GameState {
     throw new Error('Invalid save: missing numeric saveVersion.')
   }
 
-  if (value.saveVersion !== 1 && value.saveVersion !== SAVE_VERSION) {
-    throw new Error(`Unsupported saveVersion ${value.saveVersion}; expected 1 or ${SAVE_VERSION}.`)
+  if (value.saveVersion !== 1 && value.saveVersion !== 2 && value.saveVersion !== SAVE_VERSION) {
+    throw new Error(`Unsupported saveVersion ${value.saveVersion}; expected 1, 2, or ${SAVE_VERSION}.`)
   }
 
   if (typeof value.day !== 'number' || !Array.isArray(value.population) || !isRecord(value.dungeon)) {

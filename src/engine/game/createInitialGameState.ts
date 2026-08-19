@@ -16,6 +16,7 @@ function createFacility(definitionId: string, instanceId: string, roomTileId: st
     level: 1,
     assignedWorkers: {},
     durability: 100,
+    condition: 'normal',
     tileId: roomTileId,
   }
 }

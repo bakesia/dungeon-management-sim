@@ -31,6 +31,7 @@ describe('applyEffects', () => {
 
   it('adds and removes population while keeping job assignments within the remaining population', () => {
     const state = createInitialGameState()
+    state.dungeon.rooms['facility-quarters-1']!.level = 2
     state.dungeon.rooms['facility-mine-1']!.assignedWorkers.worker = 2
 
     const added = applyEffects(state, [
@@ -43,5 +44,17 @@ describe('applyEffects', () => {
     ])
     expect(removed.population.some((group) => group.jobId === 'worker')).toBe(false)
     expect(removed.dungeon.rooms['facility-mine-1']?.assignedWorkers.worker).toBe(0)
+  })
+
+  it('never grows population beyond housing capacity', () => {
+    const state = createInitialGameState()
+    state.dungeon.rooms['facility-quarters-1']!.level = 2
+
+    const next = applyEffects(state, [
+      { type: 'addPopulation', raceId: 'goblin', jobId: 'worker', amount: 8 },
+    ])
+
+    expect(next.population.reduce((total, group) => total + group.count, 0)).toBe(10)
+    expect(next.logs.at(-1)?.message).toContain('3명이 합류하지 못했습니다')
   })
 })

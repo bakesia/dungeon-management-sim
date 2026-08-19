@@ -20,11 +20,15 @@
   --danger: #bd6b61;
   --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
   --font-ui: Inter, Pretendard, "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  --font-size-ui-small: 14px;
+  --font-size-ui-base: 16px;
+  --font-size-ui-medium: 17px;
+  --font-size-ui-large: 22px;
 }
 
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
-body { margin: 0; min-width: 1180px; min-height: 100vh; overflow: hidden; }
+body { margin: 0; min-width: 1280px; min-height: 100vh; overflow: hidden; font-size: var(--font-size-ui-base); }
 button { font: inherit; }
 button:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 3px; }
 h1, h2, p { margin: 0; }

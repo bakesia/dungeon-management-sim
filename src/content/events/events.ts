@@ -1,6 +1,7 @@
 import type { EventDefinition } from '../../types/content'
+import { expandedEventDefinitions } from './expandedEvents'
 
-export const eventDefinitions: EventDefinition[] = [
+const baseEventDefinitions: EventDefinition[] = [
   {
     id: 'event_small_ore_vein', title: '작은 광맥', text: '갈라진 암벽 사이에서 쓸 만한 광맥이 드러났습니다.',
     conditions: [{ type: 'dayAtLeast', day: 2 }], weight: 10, once: true, tags: ['discovery', 'resource'],
@@ -42,26 +43,26 @@ export const eventDefinitions: EventDefinition[] = [
     ],
   },
   {
-    id: 'event_goblin_influx', title: '떠돌이 고블린', text: '일거리를 찾는 고블린 둘이 던전 입구에 찾아왔습니다.',
+    id: 'event_goblin_influx', title: '떠돌이 고블린', text: '일거리를 찾는 고블린 셋이 던전 입구에 찾아왔습니다.',
     conditions: [{ type: 'dayAtLeast', day: 2 }], weight: 8, once: false, tags: ['population', 'goblin'],
     choices: [
-      { id: 'accept', text: '주민으로 받아들인다', effects: [{ type: 'addPopulation', raceId: 'goblin', jobId: 'unassigned', amount: 2 }, { type: 'addLog', category: 'event', message: '고블린 2명이 합류했습니다.' }] },
+      { id: 'accept', text: '주민으로 받아들인다', conditions: [{ type: 'populationSpaceAtLeast', amount: 3 }], effects: [{ type: 'addPopulation', raceId: 'goblin', jobId: 'worker', amount: 3 }, { type: 'addLog', category: 'event', message: '고블린 노동자 3명이 합류했습니다.' }] },
       { id: 'reject', text: '돌려보낸다', effects: [{ type: 'addLog', category: 'event', message: '고블린들을 돌려보냈습니다.' }] },
     ],
   },
   {
     id: 'event_orc_visit', title: '낯선 오크', text: '무장한 오크 한 명이 안전한 거처를 요구합니다.',
-    conditions: [{ type: 'resourceAtLeast', resourceId: 'food', amount: 8 }], weight: 6, once: true, tags: ['population', 'orc'],
+    conditions: [{ type: 'resourceAtLeast', resourceId: 'food', amount: 8 }], weight: 10, once: false, tags: ['population', 'orc'],
     choices: [
-      { id: 'accept', text: '경비병으로 받아들인다', effects: [{ type: 'addResource', resourceId: 'food', amount: -4 }, { type: 'addPopulation', raceId: 'orc', jobId: 'guard', amount: 1 }, { type: 'addLog', category: 'event', message: '오크 경비병 1명이 합류했습니다. [식량 -4]' }] },
+      { id: 'accept', text: '경비병으로 받아들인다', conditions: [{ type: 'resourceAtLeast', resourceId: 'food', amount: 4 }, { type: 'populationSpaceAtLeast', amount: 1 }], effects: [{ type: 'addResource', resourceId: 'food', amount: -4 }, { type: 'addPopulation', raceId: 'orc', jobId: 'guard', amount: 1 }, { type: 'addLog', category: 'event', message: '오크 경비병 1명이 합류했습니다. [식량 -4]' }] },
       { id: 'reject', text: '거절한다', effects: [{ type: 'addLog', category: 'event', message: '오크는 말없이 떠났습니다.' }] },
     ],
   },
   {
     id: 'event_imp_visit', title: '호기심 많은 임프', text: '마력의 냄새를 따라온 임프가 작업장을 둘러봅니다.',
-    conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 5 }], weight: 6, once: true, tags: ['population', 'imp'],
+    conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 5 }], weight: 10, once: false, tags: ['population', 'imp'],
     choices: [
-      { id: 'accept', text: '노동자로 받아들인다', effects: [{ type: 'addResource', resourceId: 'mana', amount: -3 }, { type: 'addPopulation', raceId: 'imp', jobId: 'worker', amount: 1 }, { type: 'addLog', category: 'event', message: '임프 노동자 1명이 합류했습니다. [마력 -3]' }] },
+      { id: 'accept', text: '노동자로 받아들인다', conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 3 }, { type: 'populationSpaceAtLeast', amount: 1 }], effects: [{ type: 'addResource', resourceId: 'mana', amount: -3 }, { type: 'addPopulation', raceId: 'imp', jobId: 'worker', amount: 1 }, { type: 'addLog', category: 'event', message: '임프 노동자 1명이 합류했습니다. [마력 -3]' }] },
       { id: 'reject', text: '돌려보낸다', effects: [{ type: 'addLog', category: 'event', message: '임프는 아쉬운 표정으로 날아갔습니다.' }] },
     ],
   },
@@ -97,6 +98,11 @@ export const eventDefinitions: EventDefinition[] = [
       { id: 'erase', text: '흔적을 지우고 입구를 위장한다', conditions: [{ type: 'resourceAtLeast', resourceId: 'material', amount: 3 }], effects: [{ type: 'addResource', resourceId: 'material', amount: -3 }, { type: 'addLog', category: 'invasion', message: '던전 입구를 위장했습니다. [자재 -3]' }] },
     ],
   },
+]
+
+export const eventDefinitions: EventDefinition[] = [
+  ...baseEventDefinitions,
+  ...expandedEventDefinitions,
 ]
 
 export const eventDefinitionById = Object.fromEntries(

@@ -3,6 +3,7 @@ import type { FacilityId } from '../../types/content'
 import type { FacilityInstance, GameState } from '../../types/game'
 import type { ActionCheck } from '../../types/engine'
 import { checkConditions } from '../conditions/checkConditions'
+import { tierDefinitionById } from '../../content/tiers/tiers'
 import { applyEffect } from '../effects/applyEffects'
 import { canAfford, formatResourceCost, payResourceCost } from '../resources/resourceCosts'
 
@@ -21,6 +22,8 @@ export function canBuildFacility(state: GameState, facilityId: FacilityId, targe
   const tile = state.dungeon.tiles[targetTileId]
   if (!definition) return { allowed: false, reason: `시설 정의 "${facilityId}"을 찾을 수 없습니다.` }
   if (!definition.buildable) return { allowed: false, reason: `${definition.name}은 건설할 수 없습니다.` }
+  const currentTier = tierDefinitionById[state.currentTierId]?.level ?? 1
+  if (currentTier < definition.requiredTier) return { allowed: false, reason: `Tier ${definition.requiredTier}에서 해금되는 시설입니다.` }
   if (!tile || tile.status !== 'empty') return { allowed: false, reason: '빈 공간에만 시설을 건설할 수 있습니다.' }
   if (!checkConditions(state, definition.requirements)) return { allowed: false, reason: `${definition.name}의 건설 조건을 충족하지 못했습니다.` }
   if (!canAfford(state, definition.buildCost)) return { allowed: false, reason: `건설 비용이 부족합니다: ${formatResourceCost(definition.buildCost)}` }
@@ -43,6 +46,7 @@ export function buildFacility(state: GameState, facilityId: FacilityId, targetTi
     level: 1,
     assignedWorkers: {},
     durability: 100,
+    condition: 'normal',
     tileId: targetTileId,
   }
 

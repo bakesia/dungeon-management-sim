@@ -4,6 +4,7 @@ export type RaceId = string
 export type JobId = string
 export type TierId = string
 export type EventId = string
+export type InvaderId = string
 
 export type ResourceCost = Record<ResourceId, number>
 
@@ -21,14 +22,26 @@ export type EffectDefinition =
   | { type: 'removePopulation'; raceId: RaceId; jobId?: JobId; amount: number }
   | { type: 'setFlag'; flag: string; value: boolean }
   | { type: 'changeCoreHp'; amount: number }
+  | { type: 'damageRoom'; instanceId: string }
+  | { type: 'damageRandomRoom' }
+  | { type: 'repairRoom'; instanceId: string }
+  | { type: 'repairRandomRoom' }
   | { type: 'addLog'; message: string; category?: GameLogCategory }
+
+export type RoomModifierDefinition =
+  | { type: 'guardContributionMultiplier'; value: number }
+  | { type: 'residentLossChanceMultiplier'; value: number }
 
 export type ConditionDefinition =
   | { type: 'resourceAtLeast'; resourceId: ResourceId; amount: number }
   | { type: 'resourceAtMost'; resourceId: ResourceId; amount: number }
   | { type: 'populationAtLeast'; amount: number }
+  | { type: 'populationSpaceAtLeast'; amount: number }
   | { type: 'hasRace'; raceId: RaceId }
   | { type: 'hasRoom'; facilityId: FacilityId; minLevel?: number }
+  | { type: 'roomCountAtLeast'; amount: number }
+  | { type: 'roomLevelCountAtLeast'; minLevel: number; amount: number }
+  | { type: 'defenseWinsAtLeast'; amount: number }
   | { type: 'tierAtLeast'; level: number }
   | { type: 'flagEquals'; flag: string; value: boolean }
   | { type: 'dayAtLeast'; day: number }
@@ -50,6 +63,7 @@ export interface FacilityLevelDefinition {
   storageCapacity?: Partial<Record<ResourceId, number>>
   defense?: number
   requiredWorkers?: Partial<Record<JobId, number>>
+  modifiers?: RoomModifierDefinition[]
 }
 
 export interface FacilityDefinition {
@@ -59,6 +73,7 @@ export interface FacilityDefinition {
   description: string
   category: 'core' | 'housing' | 'production' | 'storage' | 'defense'
   buildable: boolean
+  requiredTier: number
   buildCost: ResourceCost
   levels: FacilityLevelDefinition[]
   tags: string[]
@@ -80,6 +95,7 @@ export interface JobDefinition {
   id: JobId
   name: string
   description: string
+  combatContribution: number
   tags: string[]
 }
 
@@ -89,6 +105,7 @@ export interface TierDefinition {
   name: string
   invasionChance: number
   requirements: ConditionDefinition[]
+  promotionRewards: EffectDefinition[]
 }
 
 export interface EventChoiceDefinition {
@@ -106,5 +123,16 @@ export interface EventDefinition {
   weight: number
   once: boolean
   choices: EventChoiceDefinition[]
+  tags: string[]
+}
+
+export interface InvaderDefinition {
+  id: InvaderId
+  name: string
+  combatPower: number
+  raidPower: number
+  allowedTierMin: number
+  allowedTierMax: number
+  rewards: EffectDefinition[]
   tags: string[]
 }

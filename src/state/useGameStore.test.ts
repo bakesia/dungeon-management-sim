@@ -1,11 +1,12 @@
 import 'fake-indexeddb/auto'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GameDatabase } from '../persistence/database'
 import { DEFAULT_SAVE_SLOT } from '../persistence/saveRepository'
 import type { SaveRecord } from '../types/save'
 import { useGameStore } from './useGameStore'
 
 describe('useGameStore', () => {
+  afterEach(() => vi.restoreAllMocks())
   it('routes management actions through the dungeon engines', () => {
     useGameStore.getState().startNewGame()
 
@@ -21,6 +22,7 @@ describe('useGameStore', () => {
   })
 
   it('commits the DAY engine result and autosaves it', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99)
     useGameStore.getState().startNewGame()
 
     await useGameStore.getState().advanceDay()

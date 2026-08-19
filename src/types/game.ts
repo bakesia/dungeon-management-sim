@@ -14,6 +14,7 @@ export interface Coordinate {
 }
 
 export type TileStatus = 'undiscovered' | 'diggable' | 'empty' | 'occupied'
+export type RoomCondition = 'normal' | 'damaged'
 
 export interface FacilityInstance {
   instanceId: string
@@ -21,6 +22,7 @@ export interface FacilityInstance {
   level: number
   assignedWorkers: Partial<Record<JobId, number>>
   durability: number
+  condition: RoomCondition
   tileId: string
 }
 

@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { createInitialGameState } from '../game/createInitialGameState'
 import { adjustWorkerAssignment } from '../population/assignWorkers'
 import { buildFacility } from '../construction/facilities'
+import type { RandomSource } from '../random'
+
+function sequenceRandom(values: number[]): RandomSource {
+  let index = 0
+  return { next: () => values[index++] ?? values.at(-1) ?? 0 }
+}
 import { advanceDay } from './advanceDay'
 
 describe('advanceDay', () => {
@@ -34,6 +40,7 @@ describe('advanceDay', () => {
 
   it('processes production before food and maintenance', () => {
     let state = createInitialGameState()
+    state.currentTierId = 'tier_2'
     state = adjustWorkerAssignment(state, 'facility-mine-1', 'worker', 1)
     state = buildFacility(state, 'trap_room', '0:0:-1')
 
@@ -47,5 +54,17 @@ describe('advanceDay', () => {
       .toBeLessThan(messages.findIndex((message) => message.includes('식량을 소비')))
     expect(messages.findIndex((message) => message.includes('식량을 소비')))
       .toBeLessThan(messages.findIndex((message) => message.includes('함정실 유지비')))
+  })
+
+  it('can generate an event and resolve an automatic invasion in the same day', () => {
+    const state = createInitialGameState()
+    state.day = 2
+    state.events.daysSinceLastEvent = 2
+
+    const next = advanceDay(state, { randomSource: sequenceRandom([0, 0, 0, 0.99]) })
+
+    expect(next.events.currentEventId).toBe('event_small_ore_vein')
+    expect(next.invasion.totalDefenses).toBe(1)
+    expect(next.logs.some((entry) => entry.category === 'invasion')).toBe(true)
   })
 })

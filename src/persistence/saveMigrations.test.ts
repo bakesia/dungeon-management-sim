@@ -23,7 +23,7 @@ describe('migrateSaveData', () => {
     expect(migrated.logs[0]?.category).toBe('warning')
   })
 
-  it('migrates v1 tile-embedded facilities into the v2 rooms collection', () => {
+  it('migrates v1 tile-embedded facilities into the current rooms collection', () => {
     const current = createInitialGameState()
     const legacyTiles = Object.fromEntries(Object.entries(current.dungeon.tiles).map(([id, tile]) => {
       const room = tile.facilityInstanceId ? current.dungeon.rooms[tile.facilityInstanceId] : undefined
@@ -38,9 +38,31 @@ describe('migrateSaveData', () => {
 
     const migrated = migrateSaveData(legacy)
 
-    expect(migrated.saveVersion).toBe(2)
+    expect(migrated.saveVersion).toBe(3)
     expect(migrated.dungeon.tiles['0:0:0']?.facilityInstanceId).toBe('facility-core-1')
     expect(migrated.dungeon.rooms['facility-core-1']?.tileId).toBe('0:0:0')
+    expect(migrated.dungeon.rooms['facility-core-1']?.condition).toBe('normal')
+  })
+
+  it('adds normal room condition when migrating a v2 save', () => {
+    const current = createInitialGameState()
+    const legacy = {
+      ...current,
+      saveVersion: 2,
+      dungeon: {
+        ...current.dungeon,
+        rooms: Object.fromEntries(Object.entries(current.dungeon.rooms).map(([id, room]) => {
+          const legacyRoom: Partial<typeof room> = { ...room }
+          delete legacyRoom.condition
+          return [id, legacyRoom]
+        })),
+      },
+    }
+
+    const migrated = migrateSaveData(legacy)
+
+    expect(migrated.saveVersion).toBe(3)
+    expect(Object.values(migrated.dungeon.rooms).every((room) => room.condition === 'normal')).toBe(true)
   })
 
   it('rejects unsupported save versions with a descriptive error', () => {

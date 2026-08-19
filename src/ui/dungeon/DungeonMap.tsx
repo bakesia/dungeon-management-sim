@@ -3,7 +3,10 @@ import { facilityDefinitionById } from '../../content/facilities/facilities'
 import { gameRules } from '../../content/gameRules'
 import { jobDefinitionById } from '../../content/jobs/jobs'
 import { resourceDefinitionById } from '../../content/resources/resources'
+import { tierDefinitionById } from '../../content/tiers/tiers'
 import { canUpgradeFacility } from '../../engine/construction/facilities'
+import { canRepairFacility, getRepairCost } from '../../engine/construction/repairFacility'
+import { getRoomConditionEfficiency } from '../../engine/construction/roomCondition'
 import { canDigTile } from '../../engine/dungeon/digTile'
 import { calculateFacilityEfficiency, canAdjustWorkerAssignment, getFacilityLevel } from '../../engine/population/assignWorkers'
 import { formatResourceCost } from '../../engine/resources/resourceCosts'
@@ -19,6 +22,7 @@ interface DungeonMapProps {
   onDig: (tileId: string) => boolean
   onBuild: (facilityId: string, tileId: string) => boolean
   onUpgrade: (instanceId: string) => boolean
+  onRepair: (instanceId: string) => boolean
   onDemolish: (instanceId: string) => boolean
   onAdjustWorker: (instanceId: string, jobId: string, delta: 1 | -1) => boolean
 }
@@ -39,10 +43,13 @@ function getTileLabel(state: GameState, tile: DungeonTile): string {
   return '·'
 }
 
-function describeEffects(effects: EffectDefinition[]): string {
+function describeEffects(effects: EffectDefinition[], efficiency = 1): string {
   const descriptions = effects.flatMap((effect) => {
     if (effect.type !== 'addResource') return []
-    return [`${resourceDefinitionById[effect.resourceId]?.name ?? effect.resourceId} ${effect.amount >= 0 ? '+' : ''}${effect.amount}`]
+    const amount = effect.amount >= 0
+      ? Math.floor(effect.amount * efficiency)
+      : Math.ceil(effect.amount * efficiency)
+    return [`${resourceDefinitionById[effect.resourceId]?.name ?? effect.resourceId} ${amount >= 0 ? '+' : ''}${amount}`]
   })
   return descriptions.length > 0 ? descriptions.join(' · ') : '없음'
 }
@@ -56,6 +63,7 @@ export function DungeonMap({
   onDig,
   onBuild,
   onUpgrade,
+  onRepair,
   onDemolish,
   onAdjustWorker,
 }: DungeonMapProps) {
@@ -71,6 +79,9 @@ export function DungeonMap({
   const selectedFacility = selectedRoom ? facilityDefinitionById[selectedRoom.definitionId] : undefined
   const selectedLevel = selectedRoom ? getFacilityLevel(selectedRoom) : undefined
   const buildFacility = buildModeFacilityId ? facilityDefinitionById[buildModeFacilityId] : undefined
+  const selectedEfficiency = selectedRoom
+    ? calculateFacilityEfficiency(selectedRoom) * getRoomConditionEfficiency(selectedRoom)
+    : 1
   const gridStyle = { '--map-columns': maxX - minX + 1 } as CSSProperties
 
   const selectTile = (tile: DungeonTile) => {
@@ -101,7 +112,7 @@ export function DungeonMap({
             const isBuildTarget = Boolean(buildModeFacilityId && tile.status === 'empty')
             return (
               <button
-                className={`dungeon-tile dungeon-tile--${tile.status}${isSelected ? ' is-selected' : ''}${isBuildTarget ? ' is-build-target' : ''}`}
+                className={`dungeon-tile dungeon-tile--${tile.status}${room?.condition === 'damaged' ? ' is-damaged' : ''}${isSelected ? ' is-selected' : ''}${isBuildTarget ? ' is-build-target' : ''}`}
                 type="button"
                 key={tile.id}
                 onClick={() => selectTile(tile)}
@@ -111,6 +122,7 @@ export function DungeonMap({
                 {facility?.category === 'core' && <span className="tile-core" aria-hidden="true">◆</span>}
                 <span className="dungeon-tile__name">{getTileLabel(state, tile)}</span>
                 {room && <span className="dungeon-tile__level">LV.{room.level}</span>}
+                {room?.condition === 'damaged' && <span className="dungeon-tile__condition">손상</span>}
               </button>
             )
           })}
@@ -131,12 +143,12 @@ export function DungeonMap({
           {selectedTile.status === 'diggable' && <span className="cost-label">굴착 비용 · {formatResourceCost(gameRules.excavation.cost)}</span>}
           {selectedRoom && selectedLevel && (
             <div className="facility-stats">
-              <span>생산 · {describeEffects(selectedLevel.dailyEffects)}</span>
+              <span>상태 · {selectedRoom.condition === 'damaged' ? '손상 (효과 50%)' : '정상'}</span>
+              <span>생산 · {describeEffects(selectedLevel.dailyEffects, selectedEfficiency)}</span>
               {selectedLevel.maintenanceEffects && <span>유지비 · {describeEffects(selectedLevel.maintenanceEffects)}</span>}
               {selectedLevel.populationCapacity && <span>인구 수용 · +{selectedLevel.populationCapacity}</span>}
               {selectedLevel.defense && <span>방어력 · {selectedLevel.defense}</span>}
-              <span>내구도 · {selectedRoom.durability}%</span>
-              <span>가동 효율 · {Math.round(calculateFacilityEfficiency(selectedRoom) * 100)}%</span>
+              <span>가동 효율 · {Math.round(selectedEfficiency * 100)}%</span>
             </div>
           )}
           {selectedRoom && selectedLevel && Object.entries(selectedLevel.requiredWorkers ?? {}).map(([jobId, required]) => {
@@ -151,7 +163,7 @@ export function DungeonMap({
               </div>
             )
           })}
-          {selectedFacility?.category === 'core' && <span className="cost-label">CORE HP {state.core.hp} / {state.core.maxHp} · {state.currentTierId.toUpperCase()}</span>}
+          {selectedFacility?.category === 'core' && <span className="cost-label">CORE HP {state.core.hp} / {state.core.maxHp} · TIER {tierDefinitionById[state.currentTierId]?.level ?? 1} {tierDefinitionById[state.currentTierId]?.name}</span>}
           {actionError && <span className="action-error">{actionError}</span>}
         </div>
         <div className="inspector-actions">
@@ -161,6 +173,11 @@ export function DungeonMap({
           {selectedTile.status === 'empty' && <button className="primary-button" type="button" onClick={onOpenBuildMenu}>건설 메뉴 열기</button>}
           {selectedRoom && selectedFacility?.buildable && (
             <>
+              {selectedRoom.condition === 'damaged' && (
+                <button className="primary-button repair-button" type="button" disabled={!canRepairFacility(state, selectedRoom.instanceId).allowed} onClick={() => onRepair(selectedRoom.instanceId)}>
+                  수리 · {formatResourceCost(getRepairCost(state, selectedRoom.instanceId))}
+                </button>
+              )}
               <button className="primary-button" type="button" disabled={!canUpgradeFacility(state, selectedRoom.instanceId).allowed} onClick={() => onUpgrade(selectedRoom.instanceId)}>
                 {selectedLevel?.upgradeCost ? `업그레이드 · ${formatResourceCost(selectedLevel.upgradeCost)}` : '최대 레벨'}
               </button>

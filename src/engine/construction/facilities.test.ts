@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialGameState, tileId } from '../game/createInitialGameState'
-import { buildFacility, demolishFacility, upgradeFacility } from './facilities'
+import { buildFacility, canBuildFacility, demolishFacility, upgradeFacility } from './facilities'
 
 describe('facility construction', () => {
   it('builds, upgrades, and demolishes a data-defined facility', () => {
@@ -22,5 +22,14 @@ describe('facility construction', () => {
 
   it('never permits the dungeon core to be demolished', () => {
     expect(() => demolishFacility(createInitialGameState(), 'facility-core-1')).toThrow('철거할 수 없습니다')
+  })
+
+  it('uses facility data to enforce tier unlocks', () => {
+    const state = createInitialGameState()
+    expect(canBuildFacility(state, 'training_ground', tileId(0, -1)).allowed).toBe(false)
+
+    state.currentTierId = 'tier_3'
+    state.resources.material = 100
+    expect(canBuildFacility(state, 'training_ground', tileId(0, -1)).allowed).toBe(true)
   })
 })

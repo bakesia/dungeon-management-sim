@@ -10,6 +10,8 @@ export function GameScreen() {
   const navigate = useNavigate()
   const state = useGameStore((store) => store.game)
   const isAdvancingDay = useGameStore((store) => store.isAdvancingDay)
+  const isHydrated = useGameStore((store) => store.isHydrated)
+  const loadAutosave = useGameStore((store) => store.loadAutosave)
   const lastSaveError = useGameStore((store) => store.lastSaveError)
   const lastActionError = useGameStore((store) => store.lastActionError)
   const advanceDay = useGameStore((store) => store.advanceDay)
@@ -17,6 +19,7 @@ export function GameScreen() {
   const digTile = useGameStore((store) => store.digTile)
   const buildFacility = useGameStore((store) => store.buildFacility)
   const upgradeFacility = useGameStore((store) => store.upgradeFacility)
+  const repairFacility = useGameStore((store) => store.repairFacility)
   const demolishFacility = useGameStore((store) => store.demolishFacility)
   const adjustWorker = useGameStore((store) => store.adjustWorker)
   const chooseEvent = useGameStore((store) => store.chooseEvent)
@@ -38,6 +41,19 @@ export function GameScreen() {
     return () => window.removeEventListener('keydown', cancelBuildMode)
   }, [])
 
+  useEffect(() => {
+    if (!isHydrated) void loadAutosave()
+  }, [isHydrated, loadAutosave])
+
+  useEffect(() => {
+    if (state.status === 'gameOver') navigate('/game-over')
+    if (state.status === 'clear') navigate('/clear')
+  }, [navigate, state.status])
+
+  if (!isHydrated) {
+    return <main className="game-loading"><p>던전 기록을 불러오는 중...</p></main>
+  }
+
   return (
     <main className="game-shell">
       <GameHeader state={state} onOpenMenu={() => setIsMenuOpen(true)} />
@@ -51,6 +67,7 @@ export function GameScreen() {
           onDig={digTile}
           onBuild={buildFacility}
           onUpgrade={upgradeFacility}
+          onRepair={repairFacility}
           onDemolish={demolishFacility}
           onAdjustWorker={adjustWorker}
         />

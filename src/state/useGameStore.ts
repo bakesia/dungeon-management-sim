@@ -5,12 +5,15 @@ import { digTile as runDigTile } from '../engine/dungeon/digTile'
 import { chooseEvent as runChooseEvent } from '../engine/events/processEvents'
 import { createInitialGameState } from '../engine/game/createInitialGameState'
 import { adjustWorkerAssignment as runAdjustWorkerAssignment } from '../engine/population/assignWorkers'
+import { repairFacility as runRepairFacility } from '../engine/construction/repairFacility'
+import { continueAfterClear as runContinueAfterClear } from '../engine/day/processProgression'
 import { saveRepository } from '../persistence/saveRepository'
 import type { GameState } from '../types/game'
 
 interface GameStore {
   game: GameState
   isAdvancingDay: boolean
+  isHydrated: boolean
   lastSaveError: string | null
   lastActionError: string | null
   startNewGame(): void
@@ -23,11 +26,14 @@ interface GameStore {
   demolishFacility(instanceId: string): boolean
   adjustWorker(instanceId: string, jobId: string, delta: 1 | -1): boolean
   chooseEvent(choiceId: string): boolean
+  repairFacility(instanceId: string): boolean
+  continueAfterClear(): Promise<boolean>
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
   game: createInitialGameState(),
   isAdvancingDay: false,
+  isHydrated: false,
   lastSaveError: null,
   lastActionError: null,
 
@@ -35,6 +41,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       game: createInitialGameState(),
       isAdvancingDay: false,
+      isHydrated: true,
       lastSaveError: null,
       lastActionError: null,
     })
@@ -43,12 +50,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   loadAutosave: async () => {
     try {
       const loadedGame = await saveRepository.load()
-      if (!loadedGame) return false
-      set({ game: loadedGame, lastSaveError: null, lastActionError: null })
+      if (!loadedGame) {
+        set({ isHydrated: true })
+        return false
+      }
+      set({ game: loadedGame, isHydrated: true, lastSaveError: null, lastActionError: null })
       return true
     } catch (error) {
       const message = error instanceof Error ? error.message : '알 수 없는 불러오기 오류입니다.'
-      set({ lastSaveError: `자동 저장을 불러오지 못했습니다: ${message}` })
+      set({ isHydrated: true, lastSaveError: `자동 저장을 불러오지 못했습니다: ${message}` })
       return false
     }
   },
@@ -146,6 +156,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return true
     } catch (error) {
       set({ lastActionError: error instanceof Error ? error.message : '이벤트 선택을 처리하지 못했습니다.' })
+      return false
+    }
+  },
+
+  repairFacility: (instanceId) => {
+    try {
+      set({ game: runRepairFacility(get().game, instanceId), lastActionError: null })
+      return true
+    } catch (error) {
+      set({ lastActionError: error instanceof Error ? error.message : '시설 수리에 실패했습니다.' })
+      return false
+    }
+  },
+
+  continueAfterClear: async () => {
+    try {
+      const game = runContinueAfterClear(get().game)
+      set({ game, lastActionError: null })
+      await saveRepository.save(game)
+      return true
+    } catch (error) {
+      set({ lastActionError: error instanceof Error ? error.message : '계속 운영 상태를 저장하지 못했습니다.' })
       return false
     }
   },
