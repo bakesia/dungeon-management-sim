@@ -29,21 +29,22 @@ describe('applyEffects', () => {
     expect(next.resources.food).toBe(0)
   })
 
-  it('adds and removes population while keeping job assignments within the remaining population', () => {
+  it('adds and removes population while keeping resident assignments within the remaining population', () => {
     const state = createInitialGameState()
     state.dungeon.rooms['facility-quarters-1']!.level = 2
-    state.dungeon.rooms['facility-mine-1']!.assignedWorkers.worker = 2
+    state.dungeon.rooms['facility-mine-1']!.residentAssignments = [{ raceId: 'goblin', count: 2 }]
 
     const added = applyEffects(state, [
-      { type: 'addPopulation', raceId: 'orc', jobId: 'guard', amount: 1 },
+      { type: 'addPopulation', raceId: 'orc', amount: 1 },
     ])
     expect(added.population.find((group) => group.raceId === 'orc')?.count).toBe(1)
 
     const removed = applyEffects(added, [
-      { type: 'removePopulation', raceId: 'goblin', jobId: 'worker', amount: 4 },
+      { type: 'removePopulation', raceId: 'goblin', amount: 4 },
     ])
-    expect(removed.population.some((group) => group.jobId === 'worker')).toBe(false)
-    expect(removed.dungeon.rooms['facility-mine-1']?.assignedWorkers.worker).toBe(0)
+    expect(removed.population.find((group) => group.raceId === 'goblin')?.count).toBe(1)
+    expect(removed.dungeon.rooms['facility-mine-1']?.residentAssignments).toHaveLength(1)
+    expect(removed.dungeon.rooms['facility-mine-1']?.residentAssignments[0]?.count).toBe(1)
   })
 
   it('never grows population beyond housing capacity', () => {
@@ -51,7 +52,7 @@ describe('applyEffects', () => {
     state.dungeon.rooms['facility-quarters-1']!.level = 2
 
     const next = applyEffects(state, [
-      { type: 'addPopulation', raceId: 'goblin', jobId: 'worker', amount: 8 },
+      { type: 'addPopulation', raceId: 'goblin', amount: 8 },
     ])
 
     expect(next.population.reduce((total, group) => total + group.count, 0)).toBe(10)

@@ -2,6 +2,7 @@ import { Menu } from 'lucide-react'
 import { resourceDefinitions } from '../../content/resources/resources'
 import { selectPopulationCapacity, selectPopulationTotal } from '../../state/gameSelectors'
 import type { GameState } from '../../types/game'
+import { getThreatLevel } from '../../engine/invasion/processInvasion'
 
 interface GameHeaderProps {
   state: GameState
@@ -31,6 +32,11 @@ export function GameHeader({ state, onOpenMenu }: GameHeaderProps) {
           <span className="resource-item__dot resource-item__dot--population" />
           <span className="resource-item__label">POP</span>
           <strong>{population}/{populationCapacity}</strong>
+        </div>
+        <div className="resource-item resource-item--threat" title="100에 도달하면 침입이 강제로 발생합니다.">
+          <span className="resource-item__dot resource-item__dot--threat" />
+          <span className="resource-item__label">위협</span>
+          <strong><small>{getThreatLevel(state.invasion.threat)}</small>{state.invasion.threat}/100</strong>
         </div>
       </div>
       <button className="menu-button" type="button" onClick={onOpenMenu} aria-label="메뉴 열기">

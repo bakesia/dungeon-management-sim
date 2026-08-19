@@ -3,7 +3,7 @@ import { resourceDefinitionById } from '../../content/resources/resources'
 import type { EffectDefinition } from '../../types/content'
 import type { GameState } from '../../types/game'
 import { applyEffects } from '../effects/applyEffects'
-import { calculateFacilityEfficiency, getFacilityLevel } from '../population/assignWorkers'
+import { calculateFacilityProductionMultiplier, getFacilityLevel } from '../population/assignWorkers'
 import { getRoomConditionEfficiency } from '../construction/roomCondition'
 
 function scaleEffect(effect: EffectDefinition, efficiency: number): EffectDefinition | null {
@@ -20,7 +20,9 @@ export function processDailyProduction(state: GameState, now = new Date()): Game
     const level = getFacilityLevel(room)
     if (!definition || !level || level.dailyEffects.length === 0) return currentState
 
-    const efficiency = calculateFacilityEfficiency(room) * getRoomConditionEfficiency(room)
+    const efficiency = calculateFacilityProductionMultiplier(currentState, room)
+      * getRoomConditionEfficiency(room)
+      * currentState.maintenance.efficiencyMultiplier
     const effects = level.dailyEffects
       .map((effect) => scaleEffect(effect, efficiency))
       .filter((effect): effect is EffectDefinition => effect !== null)

@@ -1,12 +1,13 @@
 import { facilityDefinitionById } from '../../content/facilities/facilities'
-import { jobDefinitionById } from '../../content/jobs/jobs'
 import { raceDefinitionById } from '../../content/races/races'
 import type { GameState } from '../../types/game'
 import { getRoomConditionEfficiency } from '../construction/roomCondition'
-import { calculateFacilityEfficiency, getFacilityLevel } from '../population/assignWorkers'
+import { calculateFacilityEfficiency, getFacilityLevel, getRaceCombatMultiplier } from '../population/assignWorkers'
+
+const RESIDENT_BASE_COMBAT = 10
 
 export interface DefenseContribution {
-  sourceType: 'population' | 'room' | 'modifier'
+  sourceType: 'population' | 'room' | 'modifier' | 'mercenary'
   sourceId: string
   label: string
   amount: number
@@ -15,39 +16,26 @@ export interface DefenseContribution {
 export interface DungeonDefenseBreakdown {
   residentDefense: number
   facilityDefense: number
+  mercenaryDefense: number
+  modifierDefense: number
   total: number
   contributions: DefenseContribution[]
 }
 
 export function calculateDungeonDefenseBreakdown(state: GameState): DungeonDefenseBreakdown {
-  const populationContributions: DefenseContribution[] = state.population.flatMap((group) => {
-    const job = jobDefinitionById[group.jobId]
-    const race = raceDefinitionById[group.raceId]
-    const amount = Math.floor(group.count * (job?.combatContribution ?? 0) * (race?.combatModifier ?? 1))
-    if (amount <= 0) return []
-    return [{
-      sourceType: 'population' as const,
-      sourceId: group.id,
-      label: `${race?.name ?? group.raceId} ${job?.name ?? group.jobId}`,
-      amount,
-    }]
-  })
-
-  const baseResidentDefense = populationContributions.reduce((total, item) => total + item.amount, 0)
-  const modifierContributions: DefenseContribution[] = Object.values(state.dungeon.rooms).flatMap((room) => {
+  const maintenanceMultiplier = state.maintenance.efficiencyMultiplier
+  const residentContributions: DefenseContribution[] = Object.values(state.dungeon.rooms).flatMap((room) => {
     const definition = facilityDefinitionById[room.definitionId]
-    const level = getFacilityLevel(room)
-    const effectiveness = calculateFacilityEfficiency(room) * getRoomConditionEfficiency(room)
-    return (level?.modifiers ?? []).flatMap((modifier) => {
-      if (modifier.type !== 'guardContributionMultiplier') return []
-      const amount = Math.floor(baseResidentDefense * (modifier.value - 1) * effectiveness)
+    if (!definition?.tags.includes('combat')) return []
+    const roomMultiplier = (getFacilityLevel(room)?.modifiers ?? []).reduce(
+      (value, modifier) => modifier.type === 'combatContributionMultiplier' ? value * modifier.value : value,
+      1,
+    )
+    const conditionMultiplier = getRoomConditionEfficiency(room)
+    return room.residentAssignments.flatMap((assignment) => {
+      const amount = Math.floor(assignment.count * RESIDENT_BASE_COMBAT * getRaceCombatMultiplier(assignment.raceId) * roomMultiplier * conditionMultiplier * maintenanceMultiplier)
       if (amount <= 0) return []
-      return [{
-        sourceType: 'modifier' as const,
-        sourceId: room.instanceId,
-        label: `${definition?.name ?? room.definitionId} 보정${room.condition === 'damaged' ? ' (손상)' : ''}`,
-        amount,
-      }]
+      return [{ sourceType: 'population' as const, sourceId: `${room.instanceId}:${assignment.raceId}`, label: `${raceDefinitionById[assignment.raceId]?.name ?? assignment.raceId} · ${definition.name}`, amount }]
     })
   })
 
@@ -55,22 +43,25 @@ export function calculateDungeonDefenseBreakdown(state: GameState): DungeonDefen
     const definition = facilityDefinitionById[room.definitionId]
     const level = getFacilityLevel(room)
     if (!definition || !level?.defense) return []
-    const amount = Math.floor(
-      level.defense * calculateFacilityEfficiency(room) * getRoomConditionEfficiency(room),
-    )
-    if (amount <= 0) return []
-    return [{
-      sourceType: 'room' as const,
-      sourceId: room.instanceId,
-      label: `${definition.name}${room.condition === 'damaged' ? ' (손상)' : ''}`,
-      amount,
-    }]
+    const amount = Math.floor(level.defense * calculateFacilityEfficiency(room) * getRoomConditionEfficiency(room) * maintenanceMultiplier)
+    return amount > 0 ? [{ sourceType: 'room' as const, sourceId: room.instanceId, label: `${definition.name}${room.condition === 'damaged' ? ' (손상)' : ''}`, amount }] : []
   })
 
-  const contributions = [...populationContributions, ...modifierContributions, ...roomContributions]
-  const residentDefense = [...populationContributions, ...modifierContributions].reduce((total, item) => total + item.amount, 0)
+  const mercenaryContributions: DefenseContribution[] = state.activeMercenaries
+    .filter((contract) => state.day < contract.expiresOnDay)
+    .map((contract) => ({ sourceType: 'mercenary' as const, sourceId: contract.contractId, label: `용병 · ${contract.contractId}`, amount: Math.floor(contract.combatPower * maintenanceMultiplier) }))
+
+  const subtotal = [...residentContributions, ...roomContributions, ...mercenaryContributions].reduce((total, item) => total + item.amount, 0)
+  const flatDefense = state.timedModifiers.filter((modifier) => modifier.type === 'flatDefense' && (!modifier.expiresOnDay || state.day < modifier.expiresOnDay)).reduce((total, modifier) => total + modifier.value, 0)
+  const defenseMultiplier = state.timedModifiers.filter((modifier) => modifier.type === 'defenseMultiplier' && (!modifier.expiresOnDay || state.day < modifier.expiresOnDay)).reduce((value, modifier) => value * modifier.value, 1)
+  const modifierAmount = Math.floor((subtotal + flatDefense) * defenseMultiplier) - subtotal
+  const modifierContributions: DefenseContribution[] = modifierAmount > 0 ? [{ sourceType: 'modifier', sourceId: 'active-defense-modifiers', label: '지원 효과', amount: modifierAmount }] : []
+
+  const residentDefense = residentContributions.reduce((total, item) => total + item.amount, 0)
   const facilityDefense = roomContributions.reduce((total, item) => total + item.amount, 0)
-  return { residentDefense, facilityDefense, total: residentDefense + facilityDefense, contributions }
+  const mercenaryDefense = mercenaryContributions.reduce((total, item) => total + item.amount, 0)
+  const contributions = [...residentContributions, ...roomContributions, ...mercenaryContributions, ...modifierContributions]
+  return { residentDefense, facilityDefense, mercenaryDefense, modifierDefense: modifierAmount, total: subtotal + modifierAmount, contributions }
 }
 
 export function calculateDungeonDefense(state: GameState): number {

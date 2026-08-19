@@ -24,6 +24,7 @@ export function checkCondition(state: GameState, condition: ConditionDefinition)
   if (condition.type === 'tierAtLeast') return (tierDefinitionById[state.currentTierId]?.level ?? 0) >= condition.level
   if (condition.type === 'flagEquals') return (state.flags[condition.flag] ?? false) === condition.value
   if (condition.type === 'dayAtLeast') return state.day >= condition.day
+  if (condition.type === 'npcJoined') return Boolean(state.npcs[condition.npcId]?.joined) === condition.value
   return false
 }
 

@@ -3,7 +3,8 @@ import { eventDefinitions } from './events/events'
 import { facilityDefinitions } from './facilities/facilities'
 import { initialFacilityPlacements, initialPopulationGroups } from './initialGame'
 import { invaderDefinitions } from './invaders/invaders'
-import { jobDefinitions } from './jobs/jobs'
+import { npcDefinitions } from './npcs/npcs'
+import { mercenaryDefinitions, npcServiceDefinitions, shopItemDefinitions } from './npcs/services'
 import { raceDefinitions } from './races/races'
 import { resourceDefinitions } from './resources/resources'
 import { tierDefinitions } from './tiers/tiers'
@@ -24,7 +25,10 @@ export function validateContent(): void {
   const errors = [
     ...findDuplicateIds('resource', resourceDefinitions.map((item) => item.id)),
     ...findDuplicateIds('race', raceDefinitions.map((item) => item.id)),
-    ...findDuplicateIds('job', jobDefinitions.map((item) => item.id)),
+    ...findDuplicateIds('npc', npcDefinitions.map((item) => item.id)),
+    ...findDuplicateIds('shop item', shopItemDefinitions.map((item) => item.id)),
+    ...findDuplicateIds('mercenary', mercenaryDefinitions.map((item) => item.id)),
+    ...findDuplicateIds('npc service', npcServiceDefinitions.map((item) => item.id)),
     ...findDuplicateIds('facility', facilityDefinitions.map((item) => item.id)),
     ...findDuplicateIds('event', eventDefinitions.map((item) => item.id)),
     ...findDuplicateIds('tier', tierDefinitions.map((item) => item.id)),
@@ -34,7 +38,7 @@ export function validateContent(): void {
 
   const resourceIds = new Set(resourceDefinitions.map((item) => item.id))
   const raceIds = new Set(raceDefinitions.map((item) => item.id))
-  const jobIds = new Set(jobDefinitions.map((item) => item.id))
+  const npcIds = new Set(npcDefinitions.map((item) => item.id))
   const facilityIds = new Set(facilityDefinitions.map((item) => item.id))
   const tierLevels = new Set(tierDefinitions.map((item) => item.level))
   const definedFlags = new Set(
@@ -54,15 +58,10 @@ export function validateContent(): void {
     if (effect.type === 'addResource' && !resourceIds.has(effect.resourceId)) {
       errors.push(`Unknown resourceId "${effect.resourceId}" referenced by ${source}.`)
     }
-    if ((effect.type === 'addPopulation' || effect.type === 'removePopulation') && !raceIds.has(effect.raceId)) {
+    if ((effect.type === 'addPopulation' || effect.type === 'offerPopulationJoin' || effect.type === 'removePopulation') && !raceIds.has(effect.raceId)) {
       errors.push(`Unknown raceId "${effect.raceId}" referenced by ${source}.`)
     }
-    if (effect.type === 'addPopulation' && !jobIds.has(effect.jobId)) {
-      errors.push(`Unknown jobId "${effect.jobId}" referenced by ${source}.`)
-    }
-    if (effect.type === 'removePopulation' && effect.jobId && !jobIds.has(effect.jobId)) {
-      errors.push(`Unknown jobId "${effect.jobId}" referenced by ${source}.`)
-    }
+    if (effect.type === 'joinNpc' && !npcIds.has(effect.npcId)) errors.push(`Unknown npcId "${effect.npcId}" referenced by ${source}.`)
     if (effect.type === 'setFlag' && effect.flag.trim().length === 0) errors.push(`Empty flag referenced by ${source}.`)
   }
 
@@ -82,11 +81,11 @@ export function validateContent(): void {
     if (condition.type === 'flagEquals' && !definedFlags.has(condition.flag)) {
       errors.push(`Unknown flag "${condition.flag}" referenced by ${source}.`)
     }
+    if (condition.type === 'npcJoined' && !npcIds.has(condition.npcId)) errors.push(`Unknown npcId "${condition.npcId}" referenced by ${source}.`)
   }
 
   initialPopulationGroups.forEach((group) => {
     if (!raceIds.has(group.raceId)) errors.push(`Unknown raceId "${group.raceId}" in initial population "${group.id}".`)
-    if (!jobIds.has(group.jobId)) errors.push(`Unknown jobId "${group.jobId}" in initial population "${group.id}".`)
   })
 
   initialFacilityPlacements.forEach((placement) => {
@@ -95,8 +94,13 @@ export function validateContent(): void {
     }
   })
 
-  jobDefinitions.forEach((job) => {
-    if (job.combatContribution < 0) errors.push(`Job "${job.id}" has negative combatContribution.`)
+  raceDefinitions.forEach((race) => {
+    race.modifiers.forEach((modifier) => {
+      if (!Number.isFinite(modifier.value) || modifier.value <= 0) errors.push(`Race "${race.id}" has an invalid ${modifier.type} value.`)
+      if (modifier.type === 'roomEfficiencyMultiplier' && modifier.targetTag.trim().length === 0) {
+        errors.push(`Race "${race.id}" has an empty production modifier targetTag.`)
+      }
+    })
   })
 
   facilityDefinitions.forEach((facility) => {
@@ -121,11 +125,8 @@ export function validateContent(): void {
       if (!resourceIds.has(resourceId)) errors.push(`Unknown resourceId "${resourceId}" referenced by facility "${facility.id}".`)
     })
 
-    facility.levels.flatMap((level) => Object.keys(level.requiredWorkers ?? {})).forEach((jobId) => {
-      if (!jobIds.has(jobId)) errors.push(`Unknown jobId "${jobId}" referenced by facility "${facility.id}".`)
-    })
-
     facility.levels.forEach((level) => {
+      if ((level.staffSlots ?? 0) < 0) errors.push(`Facility "${facility.id}" level ${level.level} has negative staffSlots.`)
       if (level.upgradeCost) validateCost(level.upgradeCost, `facility "${facility.id}" level ${level.level} upgradeCost`)
       level.dailyEffects.forEach((effect) => validateEffect(effect, `facility "${facility.id}" level ${level.level}`))
       level.maintenanceEffects?.forEach((effect) => validateEffect(effect, `facility "${facility.id}" level ${level.level}`))
@@ -142,7 +143,7 @@ export function validateContent(): void {
     tier.promotionRewards.forEach((effect) => validateEffect(effect, `tier "${tier.id}" promotion reward`))
   })
 
-  if (eventDefinitions.length < 35) errors.push(`Expected at least 35 events, found ${eventDefinitions.length}.`)
+  if (eventDefinitions.length < 55) errors.push(`Expected at least 55 events, found ${eventDefinitions.length}.`)
 
   eventDefinitions.forEach((event) => {
     if (event.choices.length === 0) errors.push(`Event "${event.id}" has no choices.`)
@@ -166,6 +167,11 @@ export function validateContent(): void {
     }
     invader.rewards.forEach((effect) => validateEffect(effect, `invader "${invader.id}"`))
   })
+
+  npcDefinitions.forEach((npc) => npc.unlockConditions.forEach((condition) => validateCondition(condition, `npc "${npc.id}"`)))
+  shopItemDefinitions.forEach((item) => { validateCost(item.cost, `shop item "${item.id}"`); item.effects.forEach((effect) => validateEffect(effect, `shop item "${item.id}"`)) })
+  mercenaryDefinitions.forEach((item) => validateCost(item.cost, `mercenary "${item.id}"`))
+  npcServiceDefinitions.forEach((service) => { validateCost(service.cost, `npc service "${service.id}"`); service.effects.forEach((effect) => validateEffect(effect, `npc service "${service.id}"`)) })
 
   if (errors.length > 0) {
     throw new Error(`Content validation failed:\n- ${errors.join('\n- ')}`)

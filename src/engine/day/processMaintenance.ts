@@ -1,36 +1,48 @@
 import { facilityDefinitionById } from '../../content/facilities/facilities'
+import { gameRules } from '../../content/gameRules'
 import { resourceDefinitionById } from '../../content/resources/resources'
-import type { EffectDefinition } from '../../types/content'
-import type { GameState } from '../../types/game'
-import { applyEffects } from '../effects/applyEffects'
+import type { FacilityInstance, GameState } from '../../types/game'
+import { applyEffect, applyEffects } from '../effects/applyEffects'
 import { getFacilityLevel } from '../population/assignWorkers'
 
+export function getRoomGoldMaintenance(room: FacilityInstance): number {
+  const definition = facilityDefinitionById[room.definitionId]
+  if (!definition?.buildable) return 0
+  return gameRules.maintenance.goldByLevel[room.level] ?? 0
+}
+
+export function getTotalGoldMaintenance(state: GameState): number {
+  return Object.values(state.dungeon.rooms).reduce((total, room) => total + getRoomGoldMaintenance(room), 0)
+}
+
 export function processMaintenance(state: GameState, now = new Date()): GameState {
-  return Object.values(state.dungeon.rooms).reduce((currentState, room) => {
-    const definition = facilityDefinitionById[room.definitionId]
-    const effects = getFacilityLevel(room)?.maintenanceEffects ?? []
-    if (!definition || effects.length === 0) return currentState
+  const requiredGold = getTotalGoldMaintenance(state)
+  const paidGold = Math.min(state.resources.gold ?? 0, requiredGold)
+  const shortfall = requiredGold - paidGold
+  const efficiencyMultiplier = shortfall > 0 ? gameRules.maintenance.unpaidEfficiencyMultiplier : 1
+  let nextState: GameState = {
+    ...state,
+    resources: { ...state.resources, gold: Math.max(0, (state.resources.gold ?? 0) - paidGold) },
+    maintenance: { requiredGold, paidGold, shortfall, efficiencyMultiplier },
+  }
 
-    const warnings: EffectDefinition[] = effects.flatMap((effect) => {
-      if (effect.type !== 'addResource' || effect.amount >= 0) return []
-      const available = currentState.resources[effect.resourceId] ?? 0
-      if (available >= Math.abs(effect.amount)) return []
-      return [{
-        type: 'addLog' as const,
-        category: 'warning' as const,
-        message: `${definition.name} 유지비가 부족합니다: ${resourceDefinitionById[effect.resourceId]?.name ?? effect.resourceId}`,
-      }]
-    })
+  const secondaryEffects = Object.values(nextState.dungeon.rooms).flatMap((room) =>
+    (getFacilityLevel(room)?.maintenanceEffects ?? []).filter(
+      (effect) => effect.type !== 'addResource' || effect.resourceId !== 'gold',
+    ),
+  )
+  nextState = applyEffects(nextState, secondaryEffects, now)
 
-    const resultText = effects.flatMap((effect) => {
-      if (effect.type !== 'addResource') return []
-      return [`${resourceDefinitionById[effect.resourceId]?.name ?? effect.resourceId} ${effect.amount}`]
-    }).join(' · ')
-
-    return applyEffects(currentState, [
-      ...effects,
-      { type: 'addLog', category: 'resource', message: `${definition.name} 유지비 처리. [${resultText}]` },
-      ...warnings,
-    ], now)
-  }, state)
+  const secondaryText = secondaryEffects.flatMap((effect) => {
+    if (effect.type !== 'addResource') return []
+    return [`${resourceDefinitionById[effect.resourceId]?.name ?? effect.resourceId} ${effect.amount}`]
+  }).join(' · ')
+  nextState = applyEffect(nextState, {
+    type: 'addLog',
+    category: shortfall > 0 ? 'warning' : 'resource',
+    message: shortfall > 0
+      ? `[유지비 부족] 골드 ${paidGold}/${requiredGold} 지불. 부족분 ${shortfall}. 오늘 생산과 방어 효율이 ${Math.round(efficiencyMultiplier * 100)}%로 감소합니다.${secondaryText ? ` [${secondaryText}]` : ''}`
+      : `[시설 유지비] 골드 -${paidGold}${secondaryText ? ` · ${secondaryText}` : ''}`,
+  }, now)
+  return nextState
 }

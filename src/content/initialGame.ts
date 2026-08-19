@@ -1,9 +1,8 @@
-import type { FacilityId, JobId, RaceId } from '../types/content'
+import type { FacilityId, RaceId } from '../types/content'
 
 export interface InitialPopulationGroupDefinition {
   id: string
   raceId: RaceId
-  jobId: JobId
   count: number
 }
 
@@ -15,8 +14,7 @@ export interface InitialFacilityPlacement {
 }
 
 export const initialPopulationGroups: InitialPopulationGroupDefinition[] = [
-  { id: 'goblin-workers-1', raceId: 'goblin', jobId: 'worker', count: 4 },
-  { id: 'goblin-guards-1', raceId: 'goblin', jobId: 'guard', count: 1 },
+  { id: 'population-goblin', raceId: 'goblin', count: 5 },
 ]
 
 export const initialFacilityPlacements: InitialFacilityPlacement[] = [

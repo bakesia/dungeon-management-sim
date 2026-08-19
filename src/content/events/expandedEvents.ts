@@ -1,6 +1,6 @@
 import type { EventDefinition } from '../../types/content'
 
-// v0.1.4의 운영 이벤트 묶음. 후속 이벤트는 flag 조건만으로 연결해
+// 운영 이벤트 묶음. 후속 이벤트는 flag 조건만으로 연결해
 // 이벤트 엔진에 콘텐츠별 분기를 만들지 않는다.
 export const expandedEventDefinitions: EventDefinition[] = [
   {
@@ -24,7 +24,7 @@ export const expandedEventDefinitions: EventDefinition[] = [
     conditions: [{ type: 'tierAtLeast', level: 2 }], weight: 6, once: false, tags: ['mana', 'resource'],
     choices: [
       { id: 'extract', text: '결정을 떼어낸다', conditions: [{ type: 'resourceAtLeast', resourceId: 'material', amount: 4 }], effects: [{ type: 'addResource', resourceId: 'mana', amount: 13 }, { type: 'addResource', resourceId: 'material', amount: -4 }, { type: 'addLog', category: 'resource', message: '채굴 도구를 소모해 마력 결정을 얻었습니다. [마력 +13, 자재 -4]' }] },
-      { id: 'stabilize', text: '주변 마력 흐름을 안정시킨다', effects: [{ type: 'changeCoreHp', amount: 8 }, { type: 'addLog', category: 'event', message: '결정의 기운이 코어를 보강했습니다. [코어 HP +8]' }] },
+      { id: 'stabilize', text: '결정과 마력을 코어에 연결한다', conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 6 }], effects: [{ type: 'addResource', resourceId: 'mana', amount: -6 }, { type: 'changeCoreHp', amount: 10 }, { type: 'addLog', category: 'event', message: '결정의 기운이 코어를 보강했습니다. [마력 -6, 코어 HP +10]' }] },
     ],
   },
   {
@@ -37,10 +37,10 @@ export const expandedEventDefinitions: EventDefinition[] = [
   },
   {
     id: 'event_hungry_goblins', title: '굶주린 고블린 무리', text: '떠돌이 고블린들이 먹을 것을 대가로 정착을 청합니다.',
-    conditions: [{ type: 'populationSpaceAtLeast', amount: 2 }, { type: 'resourceAtLeast', resourceId: 'food', amount: 8 }], weight: 7, once: false, tags: ['population'],
+    conditions: [{ type: 'resourceAtLeast', resourceId: 'food', amount: 8 }], weight: 7, once: false, tags: ['population'],
     choices: [
-      { id: 'accept', text: '식량을 내주고 받아들인다', effects: [{ type: 'addResource', resourceId: 'food', amount: -8 }, { type: 'addPopulation', raceId: 'goblin', jobId: 'worker', amount: 2 }, { type: 'addLog', category: 'event', message: '고블린 노동자 2명이 합류했습니다. [식량 -8]' }] },
-      { id: 'hire_one', text: '한 명만 고용한다', effects: [{ type: 'addResource', resourceId: 'gold', amount: -5 }, { type: 'addPopulation', raceId: 'goblin', jobId: 'worker', amount: 1 }, { type: 'addLog', category: 'event', message: '고블린 노동자 1명을 고용했습니다. [골드 -5]' }] },
+      { id: 'accept', text: '식량을 내주고 받아들인다', effects: [{ type: 'addResource', resourceId: 'food', amount: -8 }, { type: 'offerPopulationJoin', raceId: 'goblin', amount: 2 }, { type: 'addLog', category: 'event', message: '고블린 주민 2명이 합류를 요청했습니다. [식량 -8]' }] },
+      { id: 'hire_one', text: '한 명만 고용한다', effects: [{ type: 'addResource', resourceId: 'gold', amount: -5 }, { type: 'offerPopulationJoin', raceId: 'goblin', amount: 1 }, { type: 'addLog', category: 'event', message: '고블린 주민 1명이 합류를 요청했습니다. [골드 -5]' }] },
       { id: 'refuse', text: '돌려보낸다', effects: [{ type: 'addLog', category: 'event', message: '무리는 다른 은신처를 찾아 떠났습니다.' }] },
     ],
   },
@@ -57,23 +57,23 @@ export const expandedEventDefinitions: EventDefinition[] = [
     id: 'event_wounded_orc', title: '부상당한 오크', text: '던전 입구에 홀로 쓰러진 오크 전사가 발견되었습니다.',
     conditions: [{ type: 'dayAtLeast', day: 5 }, { type: 'flagEquals', flag: 'wounded_orc_helped', value: false }], weight: 7, once: true, tags: ['population', 'chain'],
     choices: [
-      { id: 'help', text: '식량과 약재를 건넨다', conditions: [{ type: 'resourceAtLeast', resourceId: 'food', amount: 7 }], effects: [{ type: 'addResource', resourceId: 'food', amount: -7 }, { type: 'setFlag', flag: 'wounded_orc_helped', value: true }, { type: 'addLog', category: 'event', message: '오크는 은혜를 잊지 않겠다며 떠났습니다. [식량 -7]' }] },
+      { id: 'help', text: '식량과 약재를 건넨다', conditions: [{ type: 'resourceAtLeast', resourceId: 'food', amount: 7 }], effects: [{ type: 'addResource', resourceId: 'food', amount: -7 }, { type: 'setFlag', flag: 'wounded_orc_helped', value: true }, { type: 'setFlag', flag: 'compassionate_dungeon', value: true }, { type: 'addLog', category: 'event', message: '오크는 은혜를 잊지 않겠다며 떠났습니다. [식량 -7]' }] },
       { id: 'rob', text: '장비를 빼앗아 내쫓는다', effects: [{ type: 'addResource', resourceId: 'material', amount: 9 }, { type: 'setFlag', flag: 'wounded_orc_helped', value: false }, { type: 'addLog', category: 'warning', message: '오크의 장비를 자재로 회수했습니다. [자재 +9]' }] },
     ],
   },
   {
     id: 'event_orc_returns', title: '돌아온 오크', text: '도움을 받았던 오크가 동료 한 명과 함께 던전으로 돌아왔습니다.',
-    conditions: [{ type: 'flagEquals', flag: 'wounded_orc_helped', value: true }, { type: 'populationSpaceAtLeast', amount: 2 }], weight: 16, once: true, tags: ['population', 'chain'],
+    conditions: [{ type: 'flagEquals', flag: 'wounded_orc_helped', value: true }], weight: 16, once: true, tags: ['population', 'chain'],
     choices: [
-      { id: 'guards', text: '경비병으로 맞이한다', effects: [{ type: 'addPopulation', raceId: 'orc', jobId: 'guard', amount: 2 }, { type: 'addLog', category: 'event', message: '오크 경비병 2명이 은혜를 갚기 위해 합류했습니다.' }] },
+      { id: 'guards', text: '주민으로 맞이한다', effects: [{ type: 'offerPopulationJoin', raceId: 'orc', amount: 2 }, { type: 'addLog', category: 'event', message: '오크 주민 2명이 은혜를 갚기 위해 합류를 요청했습니다.' }] },
       { id: 'gift', text: '정착 대신 보급품을 받는다', effects: [{ type: 'addResource', resourceId: 'gold', amount: 18 }, { type: 'addResource', resourceId: 'food', amount: 8 }, { type: 'addLog', category: 'resource', message: '오크의 보급품을 받았습니다. [골드 +18, 식량 +8]' }] },
     ],
   },
   {
     id: 'event_lost_imp', title: '길 잃은 임프', text: '마력 냄새를 따라온 어린 임프가 통로에서 서성입니다.',
-    conditions: [{ type: 'populationSpaceAtLeast', amount: 1 }, { type: 'tierAtLeast', level: 2 }], weight: 6, once: false, tags: ['population', 'mana'],
+    conditions: [{ type: 'tierAtLeast', level: 2 }], weight: 6, once: false, tags: ['population', 'mana'],
     choices: [
-      { id: 'welcome', text: '마력을 나누고 받아들인다', conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 6 }], effects: [{ type: 'addResource', resourceId: 'mana', amount: -6 }, { type: 'addPopulation', raceId: 'imp', jobId: 'worker', amount: 1 }, { type: 'addLog', category: 'event', message: '임프 노동자 1명이 합류했습니다. [마력 -6]' }] },
+      { id: 'welcome', text: '마력을 나누고 받아들인다', conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 6 }], effects: [{ type: 'addResource', resourceId: 'mana', amount: -6 }, { type: 'offerPopulationJoin', raceId: 'imp', amount: 1 }, { type: 'addLog', category: 'event', message: '임프 주민 1명이 합류를 요청했습니다. [마력 -6]' }] },
       { id: 'directions', text: '지상으로 나가는 길을 알려준다', effects: [{ type: 'addLog', category: 'event', message: '임프는 연신 고개를 숙이며 떠났습니다.' }] },
     ],
   },
@@ -148,6 +148,7 @@ export const expandedEventDefinitions: EventDefinition[] = [
     choices: [
       { id: 'collect', text: '결정을 수거한다', effects: [{ type: 'addResource', resourceId: 'mana', amount: 12 }, { type: 'addLog', category: 'resource', message: '잔향에서 마력 결정을 수거했습니다. [마력 +12]' }] },
       { id: 'repair', text: '결정의 힘으로 시설을 복구한다', effects: [{ type: 'repairRandomRoom' }, { type: 'addLog', category: 'event', message: '마력 잔향이 손상된 시설 하나를 복구했습니다.' }] },
+      { id: 'core', text: '코어의 균열을 안정시킨다', conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 8 }], effects: [{ type: 'addResource', resourceId: 'mana', amount: -8 }, { type: 'changeCoreHp', amount: 10 }, { type: 'addLog', category: 'event', message: '잔류 마력이 코어의 균열을 메웠습니다. [마력 -8, 코어 HP +10]' }] },
     ],
   },
   {

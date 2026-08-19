@@ -9,7 +9,7 @@ export const invaderDefinitions: InvaderDefinition[] = [
     allowedTierMin: 1,
     allowedTierMax: 2,
     rewards: [
-      { type: 'addResource', resourceId: 'gold', amount: 18 },
+      { type: 'addResource', resourceId: 'gold', amount: 25 },
       { type: 'addResource', resourceId: 'mana', amount: 4 },
     ],
     tags: ['human', 'solo', 'beginner'],
@@ -22,7 +22,7 @@ export const invaderDefinitions: InvaderDefinition[] = [
     allowedTierMin: 1,
     allowedTierMax: 3,
     rewards: [
-      { type: 'addResource', resourceId: 'gold', amount: 35 },
+      { type: 'addResource', resourceId: 'gold', amount: 45 },
       { type: 'addResource', resourceId: 'mana', amount: 8 },
     ],
     tags: ['human', 'party'],
@@ -35,7 +35,7 @@ export const invaderDefinitions: InvaderDefinition[] = [
     allowedTierMin: 2,
     allowedTierMax: 4,
     rewards: [
-      { type: 'addResource', resourceId: 'gold', amount: 55 },
+      { type: 'addResource', resourceId: 'gold', amount: 80 },
       { type: 'addResource', resourceId: 'mana', amount: 14 },
     ],
     tags: ['human', 'party', 'veteran'],
@@ -48,7 +48,7 @@ export const invaderDefinitions: InvaderDefinition[] = [
     allowedTierMin: 3,
     allowedTierMax: 5,
     rewards: [
-      { type: 'addResource', resourceId: 'gold', amount: 80 },
+      { type: 'addResource', resourceId: 'gold', amount: 130 },
       { type: 'addResource', resourceId: 'mana', amount: 24 },
     ],
     tags: ['human', 'elite', 'subjugation'],

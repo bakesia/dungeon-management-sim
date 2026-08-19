@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getPopulationCapacity } from '../population/populationMetrics'
-import { adjustWorkerAssignment } from '../population/assignWorkers'
+import { adjustResidentAssignment } from '../population/assignWorkers'
 import { processDailyProduction } from '../day/processDailyProduction'
 import { applyEffect } from '../effects/applyEffects'
 import { createInitialGameState } from '../game/createInitialGameState'
@@ -9,14 +9,14 @@ import { getRepairCost, repairFacility } from './repairFacility'
 describe('room condition and repair', () => {
   it('reduces a damaged room production to 50 percent', () => {
     let state = createInitialGameState()
-    state = adjustWorkerAssignment(state, 'facility-mine-1', 'worker', 1)
-    state = adjustWorkerAssignment(state, 'facility-mine-1', 'worker', 1)
+    state = adjustResidentAssignment(state, 'facility-mine-1', 'goblin', 1)
+    state = adjustResidentAssignment(state, 'facility-mine-1', 'goblin', 1)
     state = applyEffect(state, { type: 'damageRoom', instanceId: 'facility-mine-1' })
 
     const next = processDailyProduction(state)
 
     expect(next.resources.material).toBe(83)
-    expect(next.logs.at(-1)?.message).toContain('효율 50%')
+    expect(next.logs.at(-1)?.message).toContain('효율 55%')
   })
 
   it('pays the data-derived repair cost and restores normal condition', () => {

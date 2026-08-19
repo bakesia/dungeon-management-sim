@@ -38,7 +38,7 @@ describe('migrateSaveData', () => {
 
     const migrated = migrateSaveData(legacy)
 
-    expect(migrated.saveVersion).toBe(3)
+    expect(migrated.saveVersion).toBe(6)
     expect(migrated.dungeon.tiles['0:0:0']?.facilityInstanceId).toBe('facility-core-1')
     expect(migrated.dungeon.rooms['facility-core-1']?.tileId).toBe('0:0:0')
     expect(migrated.dungeon.rooms['facility-core-1']?.condition).toBe('normal')
@@ -61,8 +61,27 @@ describe('migrateSaveData', () => {
 
     const migrated = migrateSaveData(legacy)
 
-    expect(migrated.saveVersion).toBe(3)
+    expect(migrated.saveVersion).toBe(6)
     expect(Object.values(migrated.dungeon.rooms).every((room) => room.condition === 'normal')).toBe(true)
+  })
+
+  it('merges v3 job groups into race-only population and resident assignments', () => {
+    const current = createInitialGameState()
+    const rooms = Object.fromEntries(Object.entries(current.dungeon.rooms).map(([id, room]) => {
+      const legacyRoom = { ...room } as Record<string, unknown>
+      delete legacyRoom.residentAssignments
+      return [id, { ...legacyRoom, assignedWorkers: id === 'facility-mine-1' ? { worker: 2 } : {} }]
+    }))
+
+    const legacyPopulation = [
+      { id: 'goblin-workers', raceId: 'goblin', jobId: 'worker', count: 4 },
+      { id: 'goblin-guards', raceId: 'goblin', jobId: 'guard', count: 1 },
+    ]
+    const migrated = migrateSaveData({ ...current, population: legacyPopulation, saveVersion: 3, dungeon: { ...current.dungeon, rooms } })
+
+    expect(migrated.saveVersion).toBe(6)
+    expect(migrated.population).toEqual([{ id: 'population-goblin', raceId: 'goblin', count: 5 }])
+    expect(migrated.dungeon.rooms['facility-mine-1']?.residentAssignments).toEqual([{ raceId: 'goblin', count: 2 }])
   })
 
   it('rejects unsupported save versions with a descriptive error', () => {

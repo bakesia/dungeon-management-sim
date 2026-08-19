@@ -1,5 +1,7 @@
 import type { EventDefinition } from '../../types/content'
 import { expandedEventDefinitions } from './expandedEvents'
+import { npcEventDefinitions } from './npcEvents'
+import { connectedEventDefinitions } from './connectedEvents'
 
 const baseEventDefinitions: EventDefinition[] = [
   {
@@ -46,7 +48,7 @@ const baseEventDefinitions: EventDefinition[] = [
     id: 'event_goblin_influx', title: '떠돌이 고블린', text: '일거리를 찾는 고블린 셋이 던전 입구에 찾아왔습니다.',
     conditions: [{ type: 'dayAtLeast', day: 2 }], weight: 8, once: false, tags: ['population', 'goblin'],
     choices: [
-      { id: 'accept', text: '주민으로 받아들인다', conditions: [{ type: 'populationSpaceAtLeast', amount: 3 }], effects: [{ type: 'addPopulation', raceId: 'goblin', jobId: 'worker', amount: 3 }, { type: 'addLog', category: 'event', message: '고블린 노동자 3명이 합류했습니다.' }] },
+      { id: 'accept', text: '주민으로 받아들인다', effects: [{ type: 'offerPopulationJoin', raceId: 'goblin', amount: 3 }, { type: 'addLog', category: 'event', message: '고블린 주민 3명이 합류를 요청했습니다.' }] },
       { id: 'reject', text: '돌려보낸다', effects: [{ type: 'addLog', category: 'event', message: '고블린들을 돌려보냈습니다.' }] },
     ],
   },
@@ -54,7 +56,7 @@ const baseEventDefinitions: EventDefinition[] = [
     id: 'event_orc_visit', title: '낯선 오크', text: '무장한 오크 한 명이 안전한 거처를 요구합니다.',
     conditions: [{ type: 'resourceAtLeast', resourceId: 'food', amount: 8 }], weight: 10, once: false, tags: ['population', 'orc'],
     choices: [
-      { id: 'accept', text: '경비병으로 받아들인다', conditions: [{ type: 'resourceAtLeast', resourceId: 'food', amount: 4 }, { type: 'populationSpaceAtLeast', amount: 1 }], effects: [{ type: 'addResource', resourceId: 'food', amount: -4 }, { type: 'addPopulation', raceId: 'orc', jobId: 'guard', amount: 1 }, { type: 'addLog', category: 'event', message: '오크 경비병 1명이 합류했습니다. [식량 -4]' }] },
+      { id: 'accept', text: '주민으로 받아들인다', conditions: [{ type: 'resourceAtLeast', resourceId: 'food', amount: 4 }], effects: [{ type: 'addResource', resourceId: 'food', amount: -4 }, { type: 'offerPopulationJoin', raceId: 'orc', amount: 1 }, { type: 'addLog', category: 'event', message: '오크 주민 1명이 합류를 요청했습니다. [식량 -4]' }] },
       { id: 'reject', text: '거절한다', effects: [{ type: 'addLog', category: 'event', message: '오크는 말없이 떠났습니다.' }] },
     ],
   },
@@ -62,7 +64,7 @@ const baseEventDefinitions: EventDefinition[] = [
     id: 'event_imp_visit', title: '호기심 많은 임프', text: '마력의 냄새를 따라온 임프가 작업장을 둘러봅니다.',
     conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 5 }], weight: 10, once: false, tags: ['population', 'imp'],
     choices: [
-      { id: 'accept', text: '노동자로 받아들인다', conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 3 }, { type: 'populationSpaceAtLeast', amount: 1 }], effects: [{ type: 'addResource', resourceId: 'mana', amount: -3 }, { type: 'addPopulation', raceId: 'imp', jobId: 'worker', amount: 1 }, { type: 'addLog', category: 'event', message: '임프 노동자 1명이 합류했습니다. [마력 -3]' }] },
+      { id: 'accept', text: '주민으로 받아들인다', conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 3 }], effects: [{ type: 'addResource', resourceId: 'mana', amount: -3 }, { type: 'offerPopulationJoin', raceId: 'imp', amount: 1 }, { type: 'addLog', category: 'event', message: '임프 주민 1명이 합류를 요청했습니다. [마력 -3]' }] },
       { id: 'reject', text: '돌려보낸다', effects: [{ type: 'addLog', category: 'event', message: '임프는 아쉬운 표정으로 날아갔습니다.' }] },
     ],
   },
@@ -78,7 +80,7 @@ const baseEventDefinitions: EventDefinition[] = [
     id: 'event_mana_anomaly', title: '마력 이상 현상', text: '던전 안의 마력이 불규칙하게 소용돌이칩니다.',
     conditions: [], weight: 7, once: false, tags: ['mana', 'hazard'],
     choices: [
-      { id: 'stabilize', text: '마력을 소모해 안정시킨다', conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 5 }], effects: [{ type: 'addResource', resourceId: 'mana', amount: -5 }, { type: 'setFlag', flag: 'mana_stabilized', value: true }, { type: 'addLog', category: 'event', message: '마력 흐름을 안정시켰습니다. [마력 -5]' }] },
+      { id: 'stabilize', text: '마력을 코어 안정화에 사용한다', conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 10 }], effects: [{ type: 'addResource', resourceId: 'mana', amount: -10 }, { type: 'changeCoreHp', amount: 12 }, { type: 'setFlag', flag: 'mana_stabilized', value: true }, { type: 'addLog', category: 'event', message: '마력 흐름으로 코어를 안정시켰습니다. [마력 -10, 코어 HP +12]' }] },
       { id: 'harvest', text: '위험을 감수하고 흡수한다', effects: [{ type: 'addResource', resourceId: 'mana', amount: 10 }, { type: 'changeCoreHp', amount: -5 }, { type: 'addLog', category: 'warning', message: '마력을 흡수했지만 코어가 손상되었습니다. [마력 +10, 코어 HP -5]' }] },
     ],
   },
@@ -103,6 +105,8 @@ const baseEventDefinitions: EventDefinition[] = [
 export const eventDefinitions: EventDefinition[] = [
   ...baseEventDefinitions,
   ...expandedEventDefinitions,
+  ...connectedEventDefinitions,
+  ...npcEventDefinitions,
 ]
 
 export const eventDefinitionById = Object.fromEntries(

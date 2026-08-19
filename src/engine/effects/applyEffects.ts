@@ -1,23 +1,20 @@
-import type { EffectDefinition, JobId } from '../../types/content'
+import type { EffectDefinition } from '../../types/content'
 import type { GameLogEntry, GameState, PopulationGroup } from '../../types/game'
 import { getPopulationSpace } from '../population/populationMetrics'
 import { facilityDefinitionById } from '../../content/facilities/facilities'
 import { defaultRandomSource } from '../random'
 
-function reconcileWorkerAssignments(state: GameState, population: PopulationGroup[]): GameState['dungeon'] {
-  const remainingByJob = population.reduce<Partial<Record<JobId, number>>>((totals, group) => ({
-    ...totals,
-    [group.jobId]: (totals[group.jobId] ?? 0) + group.count,
-  }), {})
+function reconcileResidentAssignments(state: GameState, population: PopulationGroup[]): GameState['dungeon'] {
+  const remaining = new Map(population.map((group) => [group.raceId, group.count]))
 
   const rooms = Object.fromEntries(Object.entries(state.dungeon.rooms).map(([instanceId, room]) => {
-    const assignedWorkers = Object.fromEntries(Object.entries(room.assignedWorkers).map(([jobId, count]) => {
-      const available = remainingByJob[jobId] ?? 0
-      const reconciledCount = Math.min(count ?? 0, available)
-      remainingByJob[jobId] = Math.max(0, available - reconciledCount)
-      return [jobId, reconciledCount]
-    }))
-    return [instanceId, { ...room, assignedWorkers }]
+    const residentAssignments = room.residentAssignments.flatMap((assignment) => {
+      const available = remaining.get(assignment.raceId) ?? 0
+      const count = Math.min(assignment.count, available)
+      remaining.set(assignment.raceId, Math.max(0, available - count))
+      return count > 0 ? [{ ...assignment, count }] : []
+    })
+    return [instanceId, { ...room, residentAssignments }]
   }))
 
   return { ...state.dungeon, rooms }
@@ -29,6 +26,8 @@ function createLogEntry(state: GameState, effect: Extract<EffectDefinition, { ty
     day: state.day,
     message: effect.message,
     category: effect.category ?? 'system',
+    presentation: effect.presentation ?? 'instant',
+    sound: effect.sound,
   }
 }
 
@@ -63,7 +62,7 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
     const availableSpace = getPopulationSpace(state)
     const addedAmount = Math.min(Math.max(0, effect.amount), availableSpace)
     const matchingIndex = state.population.findIndex(
-      (group) => group.raceId === effect.raceId && group.jobId === effect.jobId,
+      (group) => group.raceId === effect.raceId,
     )
     const population = state.population.map((group) => ({ ...group }))
 
@@ -72,9 +71,8 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
       if (matchingGroup) matchingGroup.count += addedAmount
     } else if (addedAmount > 0) {
       population.push({
-        id: `population-${effect.raceId}-${effect.jobId}-${state.population.length + 1}`,
+        id: `population-${effect.raceId}`,
         raceId: effect.raceId,
-        jobId: effect.jobId,
         count: addedAmount,
       })
     }
@@ -94,10 +92,22 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
     return nextState
   }
 
+  if (effect.type === 'offerPopulationJoin') {
+    if (effect.amount <= 0) return state
+    if (state.populationJoin.pending) throw new Error('다른 주민 합류 결정이 진행 중입니다.')
+    const availableSpace = getPopulationSpace(state)
+    if (availableSpace >= effect.amount) return applyEffect(state, { type: 'addPopulation', raceId: effect.raceId, amount: effect.amount }, now)
+    return {
+      ...state,
+      populationJoin: { pending: { raceId: effect.raceId, amount: effect.amount } },
+      metadata: { ...state.metadata, updatedAt },
+    }
+  }
+
   if (effect.type === 'removePopulation') {
     let remaining = effect.amount
     const population = state.population.flatMap((group) => {
-      const matches = group.raceId === effect.raceId && (!effect.jobId || group.jobId === effect.jobId)
+      const matches = group.raceId === effect.raceId
       if (!matches || remaining <= 0) return [{ ...group }]
 
       const removed = Math.min(group.count, remaining)
@@ -109,7 +119,7 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
     return {
       ...state,
       population,
-      dungeon: reconcileWorkerAssignments(state, population),
+      dungeon: reconcileResidentAssignments(state, population),
       metadata: { ...state.metadata, updatedAt },
     }
   }
@@ -159,6 +169,57 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
       type: effect.type === 'damageRandomRoom' ? 'damageRoom' : 'repairRoom',
       instanceId: selected.instanceId,
     }, now)
+  }
+
+  if (effect.type === 'joinNpc') {
+    return {
+      ...state,
+      npcs: {
+        ...state.npcs,
+        [effect.npcId]: {
+          npcId: effect.npcId,
+          discovered: true,
+          joined: true,
+          unlockedAtDay: state.day,
+        },
+      },
+      metadata: { ...state.metadata, updatedAt },
+    }
+  }
+
+  if (effect.type === 'addTimedModifier') {
+    const modifier = {
+      id: `modifier-${state.day}-${state.timedModifiers.length + 1}`,
+      type: effect.modifierType,
+      value: effect.value,
+      targetTag: effect.targetTag,
+      expiresOnDay: effect.durationDays ? state.day + effect.durationDays : undefined,
+      consumeOnInvasion: effect.consumeOnInvasion ?? false,
+    }
+    return {
+      ...state,
+      timedModifiers: [...state.timedModifiers, modifier],
+      metadata: { ...state.metadata, updatedAt },
+    }
+  }
+
+  if (effect.type === 'revealInvasionIntel') {
+    return {
+      ...state,
+      invasion: {
+        ...state.invasion,
+        intel: { ...state.invasion.intel, [effect.intelType]: true },
+      },
+      metadata: { ...state.metadata, updatedAt },
+    }
+  }
+
+  if (effect.type === 'changeThreat') {
+    return {
+      ...state,
+      invasion: { ...state.invasion, threat: Math.min(100, Math.max(0, state.invasion.threat + effect.amount)) },
+      metadata: { ...state.metadata, updatedAt },
+    }
   }
 
   return {

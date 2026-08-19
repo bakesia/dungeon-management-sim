@@ -29,6 +29,8 @@ export function processProgression(state: GameState, now = new Date()): GameStat
       type: 'addLog',
       category: 'progression',
       message: `[던전 성장] 던전이 ${nextTier.name}(Tier ${nextTier.level})으로 성장했습니다. [성장 보너스: ${formatPromotionRewards(nextTier.promotionRewards)}]`,
+      presentation: 'typewriter',
+      sound: 'tier_up',
     }, now)
     currentIndex += 1
 

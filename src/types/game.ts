@@ -1,10 +1,12 @@
 import type {
   FacilityId,
   GameLogCategory,
-  JobId,
+  LogPresentation,
+  PresentationSoundId,
   RaceId,
   ResourceId,
   TierId,
+  EffectDefinition,
 } from './content'
 
 export interface Coordinate {
@@ -16,11 +18,16 @@ export interface Coordinate {
 export type TileStatus = 'undiscovered' | 'diggable' | 'empty' | 'occupied'
 export type RoomCondition = 'normal' | 'damaged'
 
+export interface PopulationAssignment {
+  raceId: RaceId
+  count: number
+}
+
 export interface FacilityInstance {
   instanceId: string
   definitionId: FacilityId
   level: number
-  assignedWorkers: Partial<Record<JobId, number>>
+  residentAssignments: PopulationAssignment[]
   durability: number
   condition: RoomCondition
   tileId: string
@@ -36,7 +43,6 @@ export interface DungeonTile {
 export interface PopulationGroup {
   id: string
   raceId: RaceId
-  jobId: JobId
   count: number
 }
 
@@ -45,12 +51,27 @@ export interface GameLogEntry {
   day: number
   message: string
   category: GameLogCategory
+  presentation: LogPresentation
+  sound?: PresentationSoundId
 }
 
 export interface EventRuntimeState {
   currentEventId: string | null
+  pendingEventIds: string[]
   completedEventIds: string[]
   daysSinceLastEvent: number
+  daysSinceDailyEvent: number
+  history: Array<{ eventId: string; day: number }>
+}
+
+export interface InvasionResolution {
+  id: string
+  invaderId: string
+  raidPower: number
+  defensePower: number
+  success: boolean
+  contributions: Array<{ label: string; amount: number }>
+  effects: EffectDefinition[]
 }
 
 export interface InvasionRuntimeState {
@@ -58,6 +79,52 @@ export interface InvasionRuntimeState {
   totalDefenses: number
   totalWins: number
   totalLosses: number
+  lastEncounter: {
+    sequence: number
+    invaderId: string
+    result: 'win' | 'loss'
+  } | null
+  threat: number
+  intel: {
+    powerRange: boolean
+    invaderCategory: boolean
+    arrivalEstimate: boolean
+  }
+  pendingResolution: InvasionResolution | null
+}
+
+export interface PopulationJoinRuntimeState {
+  pending: { raceId: RaceId; amount: number } | null
+}
+
+export interface MaintenanceRuntimeState {
+  requiredGold: number
+  paidGold: number
+  shortfall: number
+  efficiencyMultiplier: number
+}
+
+export interface NpcRuntimeState {
+  npcId: string
+  discovered: boolean
+  joined: boolean
+  unlockedAtDay?: number
+}
+
+export interface ActiveMercenary {
+  contractId: string
+  hiredAtDay: number
+  expiresOnDay: number
+  combatPower: number
+}
+
+export interface TimedModifierState {
+  id: string
+  type: import('./content').TimedModifierType
+  value: number
+  targetTag?: string
+  expiresOnDay?: number
+  consumeOnInvasion: boolean
 }
 
 export type GameStatus = 'playing' | 'gameOver' | 'clear'
@@ -80,6 +147,19 @@ export interface GameState {
   logs: GameLogEntry[]
   events: EventRuntimeState
   invasion: InvasionRuntimeState
+  populationJoin: PopulationJoinRuntimeState
+  maintenance: MaintenanceRuntimeState
+  npcs: Record<string, NpcRuntimeState>
+  shop: {
+    lastRefreshDay: number
+    offerings: Array<{ itemId: string; stock: number }>
+  }
+  tavern: {
+    lastRefreshDay: number
+    offers: string[]
+  }
+  activeMercenaries: ActiveMercenary[]
+  timedModifiers: TimedModifierState[]
   statistics: {
     successfulDefenses: number
     totalDaysPlayed: number

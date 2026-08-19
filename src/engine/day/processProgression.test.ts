@@ -12,7 +12,7 @@ function addRooms(state: ReturnType<typeof createInitialGameState>, targetCount:
       instanceId,
       definitionId: 'quarters',
       level: index < levelThreeCount + 3 ? 3 : 1,
-      assignedWorkers: {},
+      residentAssignments: [],
       durability: 100,
       condition: 'normal',
       tileId: `test-tile-${index}`,
@@ -25,7 +25,7 @@ describe('processProgression', () => {
   it('promotes to the next data-defined tier when every condition is met', () => {
     const state = createInitialGameState()
     addRooms(state, 6)
-    state.population[0]!.count = 7
+    state.population[0]!.count = 8
     state.statistics.successfulDefenses = 1
 
     const next = processProgression(state)
@@ -38,7 +38,7 @@ describe('processProgression', () => {
   it('can progress through all satisfied tiers and clear at Tier 5', () => {
     const state = createInitialGameState()
     addRooms(state, 30, 8)
-    state.population[0]!.count = 49
+    state.population[0]!.count = 50
     state.statistics.successfulDefenses = 12
     state.resources.gold = 500
     state.resources.mana = 300

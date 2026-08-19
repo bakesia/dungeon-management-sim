@@ -44,7 +44,7 @@ export function buildFacility(state: GameState, facilityId: FacilityId, targetTi
     instanceId,
     definitionId: facilityId,
     level: 1,
-    assignedWorkers: {},
+      residentAssignments: [],
     durability: 100,
     condition: 'normal',
     tileId: targetTileId,

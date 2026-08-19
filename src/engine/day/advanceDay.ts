@@ -1,6 +1,6 @@
 import type { GameState } from '../../types/game'
 import { applyEffect } from '../effects/applyEffects'
-import { processEventRoll } from '../events/processEvents'
+import { processEventRoll, processNpcVisitRoll } from '../events/processEvents'
 import { defaultRandomSource, type RandomSource } from '../random'
 import { processInvasionRoll } from '../invasion/processInvasion'
 import { processDailyProduction } from './processDailyProduction'
@@ -8,6 +8,8 @@ import { processFoodConsumption } from './processFoodConsumption'
 import { processMaintenance } from './processMaintenance'
 import { processPopulationState } from './processPopulationState'
 import { processProgression } from './processProgression'
+import { processCoreRecovery } from './processCoreRecovery'
+import { processNpcRuntime } from '../npcs/npcServices'
 
 export interface AdvanceDayContext {
   now?: Date
@@ -23,6 +25,9 @@ export function advanceDay(state: GameState, context: AdvanceDayContext = {}): G
   if (state.events.currentEventId) {
     throw new Error('진행 중인 이벤트의 선택을 먼저 완료해야 합니다.')
   }
+  if (state.events.pendingEventIds.length > 0 || state.populationJoin.pending || state.invasion.pendingResolution) {
+    throw new Error('대기 중인 결정이나 침입 결과를 먼저 확인해야 합니다.')
+  }
 
   let nextState = applyEffect(state, {
     type: 'addLog',
@@ -30,12 +35,15 @@ export function advanceDay(state: GameState, context: AdvanceDayContext = {}): G
     message: `DAY ${state.day} 종료`,
   }, now)
 
+  nextState = processMaintenance(nextState, now)
   nextState = processDailyProduction(nextState, now)
   nextState = processFoodConsumption(nextState, now)
-  nextState = processMaintenance(nextState, now)
   nextState = processPopulationState(nextState)
+  nextState = processNpcRuntime(nextState, randomSource)
   nextState = processEventRoll(nextState, randomSource, now)
-  nextState = processInvasionRoll(nextState, randomSource, now)
+  nextState = processNpcVisitRoll(nextState, randomSource, now)
+  nextState = processInvasionRoll(nextState, randomSource)
+  nextState = processCoreRecovery(nextState, Boolean(nextState.invasion.pendingResolution), now)
   nextState = processProgression(nextState, now)
 
   nextState = {

@@ -13,7 +13,7 @@ describe('useGameStore', () => {
     expect(useGameStore.getState().digTile('0:0:-2')).toBe(true)
     expect(useGameStore.getState().buildFacility('fungus_farm', '0:0:-1')).toBe(true)
     const farmId = useGameStore.getState().game.dungeon.tiles['0:0:-1']?.facilityInstanceId
-    expect(useGameStore.getState().adjustWorker(farmId!, 'worker', 1)).toBe(true)
+    expect(useGameStore.getState().adjustResident(farmId!, 'goblin', 1)).toBe(true)
     expect(useGameStore.getState().upgradeFacility(farmId!)).toBe(true)
     expect(useGameStore.getState().demolishFacility(farmId!)).toBe(true)
 

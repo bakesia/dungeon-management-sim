@@ -4,9 +4,12 @@ import { advanceDay as runAdvanceDay } from '../engine/day/advanceDay'
 import { digTile as runDigTile } from '../engine/dungeon/digTile'
 import { chooseEvent as runChooseEvent } from '../engine/events/processEvents'
 import { createInitialGameState } from '../engine/game/createInitialGameState'
-import { adjustWorkerAssignment as runAdjustWorkerAssignment } from '../engine/population/assignWorkers'
+import { adjustResidentAssignment as runAdjustResidentAssignment } from '../engine/population/assignWorkers'
+import { hireMercenary as runHireMercenary, performNpcService as runNpcService, purchaseShopItem as runPurchaseShopItem, repairWithBlacksmith as runRepairWithBlacksmith } from '../engine/npcs/npcServices'
 import { repairFacility as runRepairFacility } from '../engine/construction/repairFacility'
-import { continueAfterClear as runContinueAfterClear } from '../engine/day/processProgression'
+import { continueAfterClear as runContinueAfterClear, processProgression as runProcessProgression } from '../engine/day/processProgression'
+import { applyInvasionResolution as runApplyInvasionResolution } from '../engine/invasion/processInvasion'
+import { confirmPopulationReplacement as runConfirmPopulationReplacement, declinePopulationJoin as runDeclinePopulationJoin } from '../engine/population/residentReplacement'
 import { saveRepository } from '../persistence/saveRepository'
 import type { GameState } from '../types/game'
 
@@ -24,8 +27,15 @@ interface GameStore {
   buildFacility(facilityId: string, tileId: string): boolean
   upgradeFacility(instanceId: string): boolean
   demolishFacility(instanceId: string): boolean
-  adjustWorker(instanceId: string, jobId: string, delta: 1 | -1): boolean
+  adjustResident(instanceId: string, raceId: string, delta: 1 | -1): boolean
+  purchaseShopItem(itemId: string): boolean
+  hireMercenary(contractId: string): boolean
+  performNpcService(serviceId: string): boolean
+  repairWithBlacksmith(instanceId: string): boolean
   chooseEvent(choiceId: string): boolean
+  applyPendingInvasion(): 'win' | 'loss' | null
+  confirmPopulationReplacement(removals: Record<string, number>): boolean
+  declinePopulationJoin(): void
   repairFacility(instanceId: string): boolean
   continueAfterClear(): Promise<boolean>
 }
@@ -140,14 +150,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  adjustWorker: (instanceId, jobId, delta) => {
+  adjustResident: (instanceId, raceId, delta) => {
     try {
-      set({ game: runAdjustWorkerAssignment(get().game, instanceId, jobId, delta), lastActionError: null })
+      set({ game: runAdjustResidentAssignment(get().game, instanceId, raceId, delta), lastActionError: null })
       return true
     } catch (error) {
       set({ lastActionError: error instanceof Error ? error.message : '주민 배치 변경에 실패했습니다.' })
       return false
     }
+  },
+
+  purchaseShopItem: (itemId) => {
+    try { set({ game: runPurchaseShopItem(get().game, itemId), lastActionError: null }); return true }
+    catch (error) { set({ lastActionError: error instanceof Error ? error.message : '구매에 실패했습니다.' }); return false }
+  },
+
+  hireMercenary: (contractId) => {
+    try { set({ game: runHireMercenary(get().game, contractId), lastActionError: null }); return true }
+    catch (error) { set({ lastActionError: error instanceof Error ? error.message : '용병 고용에 실패했습니다.' }); return false }
+  },
+
+  performNpcService: (serviceId) => {
+    try { set({ game: runNpcService(get().game, serviceId), lastActionError: null }); return true }
+    catch (error) { set({ lastActionError: error instanceof Error ? error.message : 'NPC 지원을 이용하지 못했습니다.' }); return false }
+  },
+
+  repairWithBlacksmith: (instanceId) => {
+    try { set({ game: runRepairWithBlacksmith(get().game, instanceId), lastActionError: null }); return true }
+    catch (error) { set({ lastActionError: error instanceof Error ? error.message : '대장간 수리에 실패했습니다.' }); return false }
   },
 
   chooseEvent: (choiceId) => {
@@ -158,6 +188,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ lastActionError: error instanceof Error ? error.message : '이벤트 선택을 처리하지 못했습니다.' })
       return false
     }
+  },
+
+  applyPendingInvasion: () => {
+    const current = get().game
+    const resolution = current.invasion.pendingResolution
+    if (!resolution) return null
+    set({ game: runProcessProgression(runApplyInvasionResolution(current, resolution)), lastActionError: null })
+    return resolution.success ? 'win' : 'loss'
+  },
+
+  confirmPopulationReplacement: (removals) => {
+    try {
+      set({ game: runConfirmPopulationReplacement(get().game, removals), lastActionError: null })
+      return true
+    } catch (error) {
+      set({ lastActionError: error instanceof Error ? error.message : '주민 교체에 실패했습니다.' })
+      return false
+    }
+  },
+
+  declinePopulationJoin: () => {
+    set({ game: runDeclinePopulationJoin(get().game), lastActionError: null })
   },
 
   repairFacility: (instanceId) => {
