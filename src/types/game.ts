@@ -1,7 +1,7 @@
 import type {
   FacilityId,
+  GameLogCategory,
   JobId,
-  LogTone,
   RaceId,
   ResourceId,
   TierId,
@@ -21,13 +21,14 @@ export interface FacilityInstance {
   level: number
   assignedWorkers: Partial<Record<JobId, number>>
   durability: number
+  tileId: string
 }
 
 export interface DungeonTile {
   id: string
   coordinate: Coordinate
   status: TileStatus
-  facility?: FacilityInstance
+  facilityInstanceId?: string
 }
 
 export interface PopulationGroup {
@@ -41,8 +42,23 @@ export interface GameLogEntry {
   id: string
   day: number
   message: string
-  tone: LogTone
+  category: GameLogCategory
 }
+
+export interface EventRuntimeState {
+  currentEventId: string | null
+  completedEventIds: string[]
+  daysSinceLastEvent: number
+}
+
+export interface InvasionRuntimeState {
+  daysSinceLastInvasion: number
+  totalDefenses: number
+  totalWins: number
+  totalLosses: number
+}
+
+export type GameStatus = 'playing' | 'gameOver' | 'clear'
 
 export interface GameState {
   saveVersion: number
@@ -56,13 +72,17 @@ export interface GameState {
   }
   dungeon: {
     tiles: Record<string, DungeonTile>
+    rooms: Record<string, FacilityInstance>
   }
-  flags: string[]
+  flags: Record<string, boolean>
   logs: GameLogEntry[]
+  events: EventRuntimeState
+  invasion: InvasionRuntimeState
   statistics: {
     successfulDefenses: number
-    lastInvasionDay: number | null
+    totalDaysPlayed: number
   }
+  status: GameStatus
   metadata: {
     createdAt: string
     updatedAt: string

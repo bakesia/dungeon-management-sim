@@ -5,3 +5,7 @@ export const jobDefinitions: JobDefinition[] = [
   { id: 'guard', name: '경비병', description: '던전의 방어를 담당합니다.', tags: ['defense'] },
   { id: 'unassigned', name: '무직', description: '아직 역할을 배정받지 않았습니다.', tags: [] },
 ]
+
+export const jobDefinitionById = Object.fromEntries(
+  jobDefinitions.map((job) => [job.id, job]),
+) as Record<string, JobDefinition>

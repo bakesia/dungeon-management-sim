@@ -3,22 +3,35 @@ export type FacilityId = string
 export type RaceId = string
 export type JobId = string
 export type TierId = string
+export type EventId = string
 
 export type ResourceCost = Record<ResourceId, number>
 
-export type LogTone = 'default' | 'positive' | 'warning' | 'danger' | 'system'
+export type GameLogCategory =
+  | 'system'
+  | 'resource'
+  | 'event'
+  | 'invasion'
+  | 'warning'
+  | 'progression'
 
 export type EffectDefinition =
-  | { type: 'resource'; resourceId: ResourceId; amount: number }
-  | { type: 'coreHp'; amount: number }
-  | { type: 'flag'; flag: string; operation: 'add' | 'remove' }
-  | { type: 'log'; message: string; tone?: LogTone }
+  | { type: 'addResource'; resourceId: ResourceId; amount: number }
+  | { type: 'addPopulation'; raceId: RaceId; jobId: JobId; amount: number }
+  | { type: 'removePopulation'; raceId: RaceId; jobId?: JobId; amount: number }
+  | { type: 'setFlag'; flag: string; value: boolean }
+  | { type: 'changeCoreHp'; amount: number }
+  | { type: 'addLog'; message: string; category?: GameLogCategory }
 
 export type ConditionDefinition =
-  | { type: 'resource'; resourceId: ResourceId; comparison: 'atLeast' | 'atMost'; value: number }
-  | { type: 'population'; comparison: 'atLeast' | 'atMost'; value: number }
-  | { type: 'flag'; flag: string; exists: boolean }
-  | { type: 'tier'; tierId: TierId }
+  | { type: 'resourceAtLeast'; resourceId: ResourceId; amount: number }
+  | { type: 'resourceAtMost'; resourceId: ResourceId; amount: number }
+  | { type: 'populationAtLeast'; amount: number }
+  | { type: 'hasRace'; raceId: RaceId }
+  | { type: 'hasRoom'; facilityId: FacilityId; minLevel?: number }
+  | { type: 'tierAtLeast'; level: number }
+  | { type: 'flagEquals'; flag: string; value: boolean }
+  | { type: 'dayAtLeast'; day: number }
 
 export interface ResourceDefinition {
   id: ResourceId
@@ -32,6 +45,7 @@ export interface FacilityLevelDefinition {
   level: number
   upgradeCost?: ResourceCost
   dailyEffects: EffectDefinition[]
+  maintenanceEffects?: EffectDefinition[]
   populationCapacity?: number
   storageCapacity?: Partial<Record<ResourceId, number>>
   defense?: number
@@ -75,4 +89,22 @@ export interface TierDefinition {
   name: string
   invasionChance: number
   requirements: ConditionDefinition[]
+}
+
+export interface EventChoiceDefinition {
+  id: string
+  text: string
+  conditions?: ConditionDefinition[]
+  effects: EffectDefinition[]
+}
+
+export interface EventDefinition {
+  id: EventId
+  title: string
+  text: string
+  conditions: ConditionDefinition[]
+  weight: number
+  once: boolean
+  choices: EventChoiceDefinition[]
+  tags: string[]
 }

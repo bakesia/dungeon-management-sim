@@ -32,3 +32,7 @@ export const raceDefinitions: RaceDefinition[] = [
     tags: ['demon', 'small', 'magical'],
   },
 ]
+
+export const raceDefinitionById = Object.fromEntries(
+  raceDefinitions.map((race) => [race.id, race]),
+) as Record<string, RaceDefinition>

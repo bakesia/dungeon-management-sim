@@ -1,73 +1,62 @@
-import { migrateSaveData } from './saveMigrations'
+import { APP_VERSION, SAVE_VERSION } from '../app/version'
 import type { GameState } from '../types/game'
+import type { SaveRecord } from '../types/save'
+import { GameDatabase } from './database'
+import { migrateSaveData } from './saveMigrations'
 
-const DATABASE_NAME = 'dungeon-management-sim'
-const DATABASE_VERSION = 1
-const STORE_NAME = 'saves'
-const DEFAULT_SLOT = 'autosave'
+export const DEFAULT_SAVE_SLOT = 'autosave'
 
 export interface SaveRepository {
   save(state: GameState, slotId?: string): Promise<void>
   load(slotId?: string): Promise<GameState | null>
 }
 
+function isSaveRecord(value: unknown): value is SaveRecord {
+  return typeof value === 'object'
+    && value !== null
+    && 'slotId' in value
+    && 'gameState' in value
+}
+
 class MemorySaveRepository implements SaveRepository {
   private readonly slots = new Map<string, GameState>()
 
-  async save(state: GameState, slotId = DEFAULT_SLOT): Promise<void> {
+  async save(state: GameState, slotId = DEFAULT_SAVE_SLOT): Promise<void> {
     this.slots.set(slotId, structuredClone(state))
   }
 
-  async load(slotId = DEFAULT_SLOT): Promise<GameState | null> {
+  async load(slotId = DEFAULT_SAVE_SLOT): Promise<GameState | null> {
     const state = this.slots.get(slotId)
     return state ? structuredClone(state) : null
   }
 }
 
-class IndexedDbSaveRepository implements SaveRepository {
-  private openDatabase(): Promise<IDBDatabase> {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION)
+class DexieSaveRepository implements SaveRepository {
+  private readonly database = new GameDatabase()
 
-      request.onupgradeneeded = () => {
-        const database = request.result
-        if (!database.objectStoreNames.contains(STORE_NAME)) {
-          database.createObjectStore(STORE_NAME)
-        }
-      }
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error ?? new Error('IndexedDB를 열 수 없습니다.'))
-    })
+  async save(state: GameState, slotId = DEFAULT_SAVE_SLOT): Promise<void> {
+    const record: SaveRecord = {
+      slotId,
+      savedAt: Date.now(),
+      appVersion: APP_VERSION,
+      saveVersion: SAVE_VERSION,
+      gameState: state,
+    }
+
+    await this.database.saves.put(record, slotId)
   }
 
-  async save(state: GameState, slotId = DEFAULT_SLOT): Promise<void> {
-    const database = await this.openDatabase()
+  async load(slotId = DEFAULT_SAVE_SLOT): Promise<GameState | null> {
+    const storedValue = await this.database.saves.get(slotId)
+    if (storedValue === undefined) return null
 
-    await new Promise<void>((resolve, reject) => {
-      const transaction = database.transaction(STORE_NAME, 'readwrite')
-      transaction.objectStore(STORE_NAME).put(state, slotId)
-      transaction.oncomplete = () => resolve()
-      transaction.onerror = () => reject(transaction.error ?? new Error('게임을 저장하지 못했습니다.'))
-    })
-
-    database.close()
-  }
-
-  async load(slotId = DEFAULT_SLOT): Promise<GameState | null> {
-    const database = await this.openDatabase()
-
-    const value = await new Promise<unknown>((resolve, reject) => {
-      const transaction = database.transaction(STORE_NAME, 'readonly')
-      const request = transaction.objectStore(STORE_NAME).get(slotId)
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error ?? new Error('게임을 불러오지 못했습니다.'))
-    })
-
-    database.close()
-    return value === undefined ? null : migrateSaveData(value)
+    // Early v0.1 builds stored GameState directly; current builds wrap it in a versioned SaveRecord.
+    return migrateSaveData(isSaveRecord(storedValue) ? storedValue.gameState : storedValue)
   }
 }
 
 export function createSaveRepository(): SaveRepository {
-  return typeof indexedDB === 'undefined' ? new MemorySaveRepository() : new IndexedDbSaveRepository()
+  return typeof indexedDB === 'undefined' ? new MemorySaveRepository() : new DexieSaveRepository()
 }
+
+export const saveRepository = createSaveRepository()

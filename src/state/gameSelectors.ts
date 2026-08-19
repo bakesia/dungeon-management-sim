@@ -7,11 +7,9 @@ export function selectPopulationTotal(state: GameState): number {
 }
 
 export function selectPopulationCapacity(state: GameState): number {
-  return Object.values(state.dungeon.tiles).reduce((capacity, tile) => {
-    if (!tile.facility) return capacity
-
-    const definition = facilityDefinitionById[tile.facility.definitionId]
-    const level = definition?.levels.find((item) => item.level === tile.facility?.level)
+  return Object.values(state.dungeon.rooms).reduce((capacity, room) => {
+    const definition = facilityDefinitionById[room.definitionId]
+    const level = definition?.levels.find((item) => item.level === room.level)
     return capacity + (level?.populationCapacity ?? 0)
   }, 0)
 }

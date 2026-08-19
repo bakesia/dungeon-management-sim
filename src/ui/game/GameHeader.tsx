@@ -1,3 +1,4 @@
+import { Menu } from 'lucide-react'
 import { resourceDefinitions } from '../../content/resources/resources'
 import { selectPopulationCapacity, selectPopulationTotal } from '../../state/gameSelectors'
 import type { GameState } from '../../types/game'
@@ -33,7 +34,7 @@ export function GameHeader({ state, onOpenMenu }: GameHeaderProps) {
         </div>
       </div>
       <button className="menu-button" type="button" onClick={onOpenMenu} aria-label="메뉴 열기">
-        <span /><span /><span /> MENU
+        <Menu className="size-4" aria-hidden="true" /> MENU
       </button>
     </header>
   )
