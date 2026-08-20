@@ -15,6 +15,8 @@ import { invaderDefinitionById } from '../../content/invaders/invaders'
 import { InvasionWarning } from '../invasion/InvasionWarning'
 import { SpecialVisitorModal } from '../npcs/SpecialVisitorModal'
 import { ResidentReplacementModal } from '../population/ResidentReplacementModal'
+import type { FeatureId } from '../../types/content'
+import type { MenuView } from '../menu/GameMenu'
 
 export function GameScreen() {
   const navigate = useNavigate()
@@ -34,6 +36,7 @@ export function GameScreen() {
   const adjustResident = useGameStore((store) => store.adjustResident)
   const purchaseShopItem = useGameStore((store) => store.purchaseShopItem)
   const hireMercenary = useGameStore((store) => store.hireMercenary)
+  const recruitResident = useGameStore((store) => store.recruitResident)
   const performNpcService = useGameStore((store) => store.performNpcService)
   const repairWithBlacksmith = useGameStore((store) => store.repairWithBlacksmith)
   const chooseEvent = useGameStore((store) => store.chooseEvent)
@@ -41,6 +44,8 @@ export function GameScreen() {
   const confirmPopulationReplacement = useGameStore((store) => store.confirmPopulationReplacement)
   const declinePopulationJoin = useGameStore((store) => store.declinePopulationJoin)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [menuView, setMenuView] = useState<MenuView>('main')
+  const [menuNpcFeature, setMenuNpcFeature] = useState<FeatureId | null>(null)
   const [buildIntent, setBuildIntent] = useState(emptyBuildIntent)
   const [saveStatus, setSaveStatus] = useState('')
   const [assignmentRoomId, setAssignmentRoomId] = useState<string | null>(null)
@@ -143,6 +148,14 @@ export function GameScreen() {
 
   const openBuildMenu = (tileId?: string) => {
     if (tileId) setBuildIntent((current) => selectBuildTarget(current, tileId))
+    setMenuView('build')
+    setMenuNpcFeature(null)
+    setIsMenuOpen(true)
+  }
+
+  const openMenu = (view: MenuView = 'main', npcFeature: FeatureId | null = null) => {
+    setMenuView(view)
+    setMenuNpcFeature(npcFeature)
     setIsMenuOpen(true)
   }
 
@@ -162,7 +175,7 @@ export function GameScreen() {
 
   return (
     <main className="game-shell">
-      <GameHeader state={state} onOpenMenu={() => setIsMenuOpen(true)} />
+      <GameHeader state={state} onOpenMenu={() => openMenu()} />
       <div className="game-layout">
         <DungeonMap
           state={state}
@@ -176,6 +189,8 @@ export function GameScreen() {
           onRepair={repairFacility}
           onDemolish={demolishFacility}
           onOpenAssignment={setAssignmentRoomId}
+          onOpenNpcFeature={(featureId) => openMenu('npcs', featureId)}
+          onOpenNpcMenu={() => openMenu('npcs')}
         />
         <GameLog
           state={state}
@@ -200,8 +215,11 @@ export function GameScreen() {
           onPreferenceChange={changePreference}
           onPurchase={purchaseShopItem}
           onHire={hireMercenary}
+          onRecruit={recruitResident}
           onService={performNpcService}
           onBlacksmithRepair={repairWithBlacksmith}
+          initialView={menuView}
+          initialNpcFeature={menuNpcFeature}
         />
       )}
       {assignmentRoomId && (

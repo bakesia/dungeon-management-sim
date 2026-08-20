@@ -9,27 +9,29 @@ export const gameRules = {
     cost: { [RESOURCE_IDS.material]: 10 } satisfies ResourceCost,
   },
   maintenance: {
-    goldByLevel: [0, 1, 2, 3],
     unpaidEfficiencyMultiplier: 0.75,
   },
   invasion: {
     safeDaysAfterInvasion: 2,
-    threat: {
-      maximum: 100,
-      resetAfterInvasion: 15,
-      baseDailyGain: 12,
-      tierGain: 2,
-      populationStep: 10,
-      randomChanceAtMaximum: 0.35,
+    fame: {
+      chanceScale: 70,
+      maximumChanceBonus: 0.24,
+      victoryGain: 5,
+      defeatLoss: 4,
+    },
+    pity: {
+      pressurePerEligibleDay: 0.035,
+      maximumPressureBonus: 0.21,
+      forceAfterDays: 8,
     },
     damage: {
-      goldRatio: 0.5,
-      materialRatio: 0.35,
-      foodRatio: 0.25,
-      coreHpRatio: 0.75,
-      populationLossChancePerRaidPower: 0.01,
-      maximumPopulationLossChance: 0.6,
-      facilityDamageChance: 0.35,
+      goldRatio: 0.4,
+      materialRatio: 0.28,
+      foodRatio: 0.2,
+      coreHpRatio: 0.45,
+      populationLossChancePerRaidPower: 0.007,
+      maximumPopulationLossChance: 0.4,
+      secondaryDamageChance: 0.4,
     },
   },
   events: {
@@ -46,6 +48,7 @@ export const gameRules = {
     visitorChance: 0.35,
     shopRefreshDays: 4,
     tavernRefreshDays: 5,
+    recruitmentRefreshDays: 4,
     blacksmithRepairDiscount: 0.85,
   },
 } as const

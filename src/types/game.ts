@@ -53,6 +53,9 @@ export interface GameLogEntry {
   category: GameLogCategory
   presentation: LogPresentation
   sound?: PresentationSoundId
+  presentationGroupId?: string
+  presentationSequence?: number
+  presentationPriority?: number
 }
 
 export interface EventRuntimeState {
@@ -68,6 +71,8 @@ export interface InvasionResolution {
   id: string
   invaderId: string
   raidPower: number
+  actualCombatPower: number
+  startedOnDay: number
   defensePower: number
   success: boolean
   contributions: Array<{ label: string; amount: number }>
@@ -84,7 +89,8 @@ export interface InvasionRuntimeState {
     invaderId: string
     result: 'win' | 'loss'
   } | null
-  threat: number
+  fame: number
+  raidPressure: number
   intel: {
     powerRange: boolean
     invaderCategory: boolean
@@ -156,7 +162,9 @@ export interface GameState {
   }
   tavern: {
     lastRefreshDay: number
+    lastRecruitmentRefreshDay: number
     offers: string[]
+    recruitmentOffers: Array<{ offerId: string; remaining: number }>
   }
   activeMercenaries: ActiveMercenary[]
   timedModifiers: TimedModifierState[]

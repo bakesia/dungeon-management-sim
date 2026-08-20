@@ -1,9 +1,9 @@
 import type { TierDefinition } from '../../types/content'
 
 export const tierDefinitions: TierDefinition[] = [
-  { id: 'tier_1', level: 1, name: '폐던전', invasionChance: 0.1, requirements: [], promotionRewards: [] },
+  { id: 'tier_1', level: 1, name: '폐던전', invasionChance: 0.06, requirements: [], promotionRewards: [] },
   {
-    id: 'tier_2', level: 2, name: '소형 던전', invasionChance: 0.15,
+    id: 'tier_2', level: 2, name: '소형 던전', invasionChance: 0.08,
     requirements: [
       { type: 'roomCountAtLeast', amount: 6 },
       { type: 'populationAtLeast', amount: 8 },
@@ -12,10 +12,11 @@ export const tierDefinitions: TierDefinition[] = [
     promotionRewards: [
       { type: 'addResource', resourceId: 'gold', amount: 30 },
       { type: 'addResource', resourceId: 'material', amount: 20 },
+      { type: 'changeFame', amount: 8 },
     ],
   },
   {
-    id: 'tier_3', level: 3, name: '중형 던전', invasionChance: 0.2,
+    id: 'tier_3', level: 3, name: '중형 던전', invasionChance: 0.1,
     requirements: [
       { type: 'roomCountAtLeast', amount: 12 },
       { type: 'populationAtLeast', amount: 15 },
@@ -26,10 +27,11 @@ export const tierDefinitions: TierDefinition[] = [
       { type: 'addResource', resourceId: 'gold', amount: 50 },
       { type: 'addResource', resourceId: 'material', amount: 30 },
       { type: 'addResource', resourceId: 'mana', amount: 15 },
+      { type: 'changeFame', amount: 12 },
     ],
   },
   {
-    id: 'tier_4', level: 4, name: '대형 던전', invasionChance: 0.25,
+    id: 'tier_4', level: 4, name: '대형 던전', invasionChance: 0.12,
     requirements: [
       { type: 'roomCountAtLeast', amount: 20 },
       { type: 'populationAtLeast', amount: 30 },
@@ -41,10 +43,11 @@ export const tierDefinitions: TierDefinition[] = [
       { type: 'addResource', resourceId: 'gold', amount: 80 },
       { type: 'addResource', resourceId: 'material', amount: 40 },
       { type: 'addResource', resourceId: 'mana', amount: 30 },
+      { type: 'changeFame', amount: 16 },
     ],
   },
   {
-    id: 'tier_5', level: 5, name: '거대 던전', invasionChance: 0.3,
+    id: 'tier_5', level: 5, name: '거대 던전', invasionChance: 0.14,
     requirements: [
       { type: 'roomCountAtLeast', amount: 30 },
       { type: 'populationAtLeast', amount: 50 },
@@ -57,6 +60,7 @@ export const tierDefinitions: TierDefinition[] = [
       { type: 'addResource', resourceId: 'gold', amount: 120 },
       { type: 'addResource', resourceId: 'material', amount: 60 },
       { type: 'addResource', resourceId: 'mana', amount: 50 },
+      { type: 'changeFame', amount: 20 },
     ],
   },
 ]

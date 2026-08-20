@@ -111,7 +111,8 @@ export function createInitialGameState(now = new Date()): GameState {
       totalWins: 0,
       totalLosses: 0,
       lastEncounter: null,
-      threat: 0,
+      fame: 0,
+      raidPressure: 0,
       intel: { powerRange: false, invaderCategory: false, arrivalEstimate: false },
       pendingResolution: null,
     },
@@ -128,7 +129,13 @@ export function createInitialGameState(now = new Date()): GameState {
     },
     tavern: {
       lastRefreshDay: 1,
+      lastRecruitmentRefreshDay: 1,
       offers: ['goblin_scouts', 'orc_mercenaries', 'imp_warders'],
+      recruitmentOffers: [
+        { offerId: 'recruit_goblin_pair', remaining: 1 },
+        { offerId: 'recruit_orc', remaining: 1 },
+        { offerId: 'recruit_imp', remaining: 1 },
+      ],
     },
     activeMercenaries: [],
     timedModifiers: [],

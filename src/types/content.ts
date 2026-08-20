@@ -41,8 +41,8 @@ export type EffectDefinition =
   | { type: 'joinNpc'; npcId: NpcId }
   | { type: 'addTimedModifier'; modifierType: TimedModifierType; value: number; durationDays?: number; targetTag?: string; consumeOnInvasion?: boolean }
   | { type: 'revealInvasionIntel'; intelType: InvasionIntelType }
-  | { type: 'changeThreat'; amount: number }
-  | { type: 'addLog'; message: string; category?: GameLogCategory; presentation?: LogPresentation; sound?: PresentationSoundId }
+  | { type: 'changeFame'; amount: number }
+  | { type: 'addLog'; message: string; category?: GameLogCategory; presentation?: LogPresentation; sound?: PresentationSoundId; logDay?: number; presentationGroupId?: string; presentationSequence?: number; presentationPriority?: number }
 
 export type RoomModifierDefinition =
   | { type: 'combatContributionMultiplier'; value: number }
@@ -77,6 +77,8 @@ export interface ResourceDefinition {
   shortName: string
   color: string
   initialAmount: number
+  baseCapacity: number
+  iconId: string
 }
 
 export interface FacilityLevelDefinition {
@@ -97,6 +99,8 @@ export interface FacilityDefinition {
   name: string
   shortName: string
   description: string
+  role: string
+  iconId: string
   category: 'core' | 'housing' | 'production' | 'storage' | 'defense'
   buildable: boolean
   requiredTier: number
@@ -128,6 +132,18 @@ export interface TierDefinition {
   invasionChance: number
   requirements: ConditionDefinition[]
   promotionRewards: EffectDefinition[]
+}
+
+export interface RecruitmentOfferDefinition {
+  id: string
+  name: string
+  description: string
+  raceId: RaceId
+  count: number
+  cost: ResourceCost
+  stock: number
+  weight: number
+  minTier: number
 }
 
 export interface EventChoiceDefinition {
@@ -197,10 +213,12 @@ export interface NpcServiceDefinition {
 export interface InvaderDefinition {
   id: InvaderId
   name: string
-  combatPower: number
+  powerRange: { min: number; max: number }
   raidPower: number
   allowedTierMin: number
   allowedTierMax: number
+  minimumFame: number
+  weight: number
   rewards: EffectDefinition[]
   tags: string[]
 }

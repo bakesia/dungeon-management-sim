@@ -1,7 +1,11 @@
 import { SAVE_VERSION } from '../app/version'
 import { createInitialGameState } from '../engine/game/createInitialGameState'
-import type { GameLogCategory, LogPresentation, RaceId } from '../types/content'
-import type { DungeonTile, FacilityInstance, GameLogEntry, GameState, PopulationAssignment, PopulationGroup } from '../types/game'
+import type { EffectDefinition, GameLogCategory, LogPresentation, RaceId } from '../types/content'
+import type { DungeonTile, FacilityInstance, GameLogEntry, GameState, InvasionResolution, PopulationAssignment, PopulationGroup } from '../types/game'
+import { REMOVED_FACILITY_IDS } from '../content/facilities/facilities'
+import { tierDefinitionById } from '../content/tiers/tiers'
+import { invaderDefinitionById } from '../content/invaders/invaders'
+import { gameRules } from '../content/gameRules'
 
 type UnknownRecord = Record<string, unknown>
 const isRecord = (value: unknown): value is UnknownRecord => typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -34,6 +38,9 @@ function normalizeLogs(value: unknown, day: number): GameLogEntry[] {
     category: normalizeLogCategory(item),
     presentation: item.presentation === 'typewriter' ? 'typewriter' as LogPresentation : 'instant' as LogPresentation,
     sound: typeof item.sound === 'string' ? item.sound as GameLogEntry['sound'] : undefined,
+    presentationGroupId: typeof item.presentationGroupId === 'string' ? item.presentationGroupId : undefined,
+    presentationSequence: typeof item.presentationSequence === 'number' ? item.presentationSequence : undefined,
+    presentationPriority: typeof item.presentationPriority === 'number' ? item.presentationPriority : undefined,
   }])
 }
 
@@ -118,9 +125,25 @@ function normalizeDungeon(value: UnknownRecord, saveVersion: number, rawPopulati
   return { tiles, rooms }
 }
 
+function removeDeprecatedFacilities(dungeon: GameState['dungeon']): GameState['dungeon'] {
+  const removedIds = new Set<string>(REMOVED_FACILITY_IDS)
+  const removedInstanceIds = new Set(Object.values(dungeon.rooms)
+    .filter((room) => removedIds.has(room.definitionId))
+    .map((room) => room.instanceId))
+  if (removedInstanceIds.size === 0) return dungeon
+
+  const rooms = Object.fromEntries(Object.entries(dungeon.rooms).filter(([, room]) => !removedInstanceIds.has(room.instanceId)))
+  const tiles = Object.fromEntries(Object.entries(dungeon.tiles).map(([id, tile]) => [id,
+    tile.facilityInstanceId && removedInstanceIds.has(tile.facilityInstanceId)
+      ? { ...tile, status: 'empty' as const, facilityInstanceId: undefined }
+      : tile,
+  ]))
+  return { rooms, tiles }
+}
+
 export function migrateSaveData(value: unknown): GameState {
   if (!isRecord(value) || typeof value.saveVersion !== 'number') throw new Error('Invalid save: missing numeric saveVersion.')
-  if (![1, 2, 3, 4, 5, SAVE_VERSION].includes(value.saveVersion)) throw new Error(`Unsupported saveVersion ${value.saveVersion}; expected 1 through ${SAVE_VERSION}.`)
+  if (![1, 2, 3, 4, 5, 6, 7, SAVE_VERSION].includes(value.saveVersion)) throw new Error(`Unsupported saveVersion ${value.saveVersion}; expected 1 through ${SAVE_VERSION}.`)
   if (typeof value.day !== 'number' || !Array.isArray(value.population) || !isRecord(value.dungeon)) throw new Error('Invalid save: day, population, or dungeon state is malformed.')
   const fallback = createInitialGameState()
   const population = normalizePopulation(value.population)
@@ -133,15 +156,23 @@ export function migrateSaveData(value: unknown): GameState {
   const maintenance = isRecord(value.maintenance) ? value.maintenance : {}
   const metadata = isRecord(value.metadata) ? value.metadata : {}
   const intel = isRecord(invasion.intel) ? invasion.intel : {}
+  const dungeon = removeDeprecatedFacilities(normalizeDungeon(value.dungeon, value.saveVersion, value.population, population))
+  const currentTierId = typeof value.currentTierId === 'string' ? value.currentTierId : fallback.currentTierId
+  const totalWins = typeof invasion.totalWins === 'number' ? invasion.totalWins : 0
+  const totalLosses = typeof invasion.totalLosses === 'number' ? invasion.totalLosses : 0
+  const tierLevel = tierDefinitionById[currentTierId]?.level ?? 1
+  const migratedFame = Math.max(0, (tierLevel - 1) * 14 + totalWins * 3 - totalLosses * 2 + Math.floor(Math.min(value.day, 40) / 8))
+  const rawPendingResolution = isRecord(invasion.pendingResolution) ? invasion.pendingResolution : null
+  const pendingInvader = rawPendingResolution && typeof rawPendingResolution.invaderId === 'string' ? invaderDefinitionById[rawPendingResolution.invaderId] : undefined
   return {
     ...fallback,
     saveVersion: SAVE_VERSION,
     day: value.day,
     resources: { ...fallback.resources, ...normalizeNumberRecord(value.resources) },
     population,
-    currentTierId: typeof value.currentTierId === 'string' ? value.currentTierId : fallback.currentTierId,
+    currentTierId,
     core: { hp: typeof core.hp === 'number' ? core.hp : fallback.core.hp, maxHp: typeof core.maxHp === 'number' ? core.maxHp : fallback.core.maxHp },
-    dungeon: normalizeDungeon(value.dungeon, value.saveVersion, value.population, population),
+    dungeon,
     flags: normalizeFlags(value.flags),
     logs: normalizeLogs(value.logs, value.day),
     events: {
@@ -156,17 +187,34 @@ export function migrateSaveData(value: unknown): GameState {
       ...fallback.invasion,
       daysSinceLastInvasion: typeof invasion.daysSinceLastInvasion === 'number' ? invasion.daysSinceLastInvasion : 0,
       totalDefenses: typeof invasion.totalDefenses === 'number' ? invasion.totalDefenses : 0,
-      totalWins: typeof invasion.totalWins === 'number' ? invasion.totalWins : 0,
-      totalLosses: typeof invasion.totalLosses === 'number' ? invasion.totalLosses : 0,
+      totalWins,
+      totalLosses,
       lastEncounter: isRecord(invasion.lastEncounter) && typeof invasion.lastEncounter.sequence === 'number' && typeof invasion.lastEncounter.invaderId === 'string' && (invasion.lastEncounter.result === 'win' || invasion.lastEncounter.result === 'loss') ? invasion.lastEncounter as unknown as GameState['invasion']['lastEncounter'] : null,
-      threat: typeof invasion.threat === 'number' ? Math.min(100, Math.max(0, invasion.threat)) : 0,
+      fame: typeof invasion.fame === 'number' ? Math.max(0, invasion.fame) : migratedFame,
+      raidPressure: typeof invasion.raidPressure === 'number'
+        ? Math.max(0, invasion.raidPressure)
+        : Math.min(gameRules.invasion.pity.maximumPressureBonus, (typeof invasion.daysSinceLastInvasion === 'number' ? invasion.daysSinceLastInvasion : 0) * gameRules.invasion.pity.pressurePerEligibleDay),
       intel: { powerRange: intel.powerRange === true, invaderCategory: intel.invaderCategory === true, arrivalEstimate: intel.arrivalEstimate === true },
-      pendingResolution: isRecord(invasion.pendingResolution)
-        && typeof invasion.pendingResolution.id === 'string'
-        && typeof invasion.pendingResolution.invaderId === 'string'
-        && typeof invasion.pendingResolution.success === 'boolean'
-        && Array.isArray(invasion.pendingResolution.effects)
-          ? invasion.pendingResolution as unknown as GameState['invasion']['pendingResolution']
+      pendingResolution: rawPendingResolution
+        && typeof rawPendingResolution.id === 'string'
+        && typeof rawPendingResolution.invaderId === 'string'
+        && typeof rawPendingResolution.success === 'boolean'
+        && typeof rawPendingResolution.raidPower === 'number'
+        && typeof rawPendingResolution.defensePower === 'number'
+        && Array.isArray(rawPendingResolution.effects)
+          ? {
+              id: rawPendingResolution.id,
+              invaderId: rawPendingResolution.invaderId,
+              raidPower: rawPendingResolution.raidPower,
+              actualCombatPower: typeof rawPendingResolution.actualCombatPower === 'number'
+                ? rawPendingResolution.actualCombatPower
+                : Math.round(((pendingInvader?.powerRange.min ?? rawPendingResolution.raidPower) + (pendingInvader?.powerRange.max ?? rawPendingResolution.raidPower)) / 2),
+              startedOnDay: typeof rawPendingResolution.startedOnDay === 'number' ? rawPendingResolution.startedOnDay : Math.max(1, value.day - 1),
+              defensePower: rawPendingResolution.defensePower,
+              success: rawPendingResolution.success,
+              contributions: Array.isArray(rawPendingResolution.contributions) ? rawPendingResolution.contributions as InvasionResolution['contributions'] : [],
+              effects: rawPendingResolution.effects as EffectDefinition[],
+            }
           : null,
     },
     populationJoin: {
@@ -182,7 +230,14 @@ export function migrateSaveData(value: unknown): GameState {
     },
     npcs: isRecord(value.npcs) ? value.npcs as unknown as GameState['npcs'] : {},
     shop: isRecord(value.shop) && Array.isArray(value.shop.offerings) ? value.shop as unknown as GameState['shop'] : fallback.shop,
-    tavern: isRecord(value.tavern) && Array.isArray(value.tavern.offers) ? value.tavern as unknown as GameState['tavern'] : fallback.tavern,
+    tavern: isRecord(value.tavern) && Array.isArray(value.tavern.offers) ? {
+      lastRefreshDay: typeof value.tavern.lastRefreshDay === 'number' ? value.tavern.lastRefreshDay : value.day,
+      lastRecruitmentRefreshDay: typeof value.tavern.lastRecruitmentRefreshDay === 'number' ? value.tavern.lastRecruitmentRefreshDay : value.day,
+      offers: value.tavern.offers.filter((id): id is string => typeof id === 'string'),
+      recruitmentOffers: Array.isArray(value.tavern.recruitmentOffers)
+        ? value.tavern.recruitmentOffers.flatMap((entry) => isRecord(entry) && typeof entry.offerId === 'string' && typeof entry.remaining === 'number' ? [{ offerId: entry.offerId, remaining: Math.max(0, Math.floor(entry.remaining)) }] : [])
+        : fallback.tavern.recruitmentOffers,
+    } : fallback.tavern,
     activeMercenaries: Array.isArray(value.activeMercenaries) ? value.activeMercenaries as GameState['activeMercenaries'] : [],
     timedModifiers: Array.isArray(value.timedModifiers) ? value.timedModifiers as GameState['timedModifiers'] : [],
     statistics: { successfulDefenses: typeof statistics.successfulDefenses === 'number' ? statistics.successfulDefenses : 0, totalDaysPlayed: typeof statistics.totalDaysPlayed === 'number' ? statistics.totalDaysPlayed : 0 },

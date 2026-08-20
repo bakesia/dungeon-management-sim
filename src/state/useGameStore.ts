@@ -5,7 +5,7 @@ import { digTile as runDigTile } from '../engine/dungeon/digTile'
 import { chooseEvent as runChooseEvent } from '../engine/events/processEvents'
 import { createInitialGameState } from '../engine/game/createInitialGameState'
 import { adjustResidentAssignment as runAdjustResidentAssignment } from '../engine/population/assignWorkers'
-import { hireMercenary as runHireMercenary, performNpcService as runNpcService, purchaseShopItem as runPurchaseShopItem, repairWithBlacksmith as runRepairWithBlacksmith } from '../engine/npcs/npcServices'
+import { hireMercenary as runHireMercenary, performNpcService as runNpcService, purchaseShopItem as runPurchaseShopItem, recruitResident as runRecruitResident, repairWithBlacksmith as runRepairWithBlacksmith } from '../engine/npcs/npcServices'
 import { repairFacility as runRepairFacility } from '../engine/construction/repairFacility'
 import { continueAfterClear as runContinueAfterClear, processProgression as runProcessProgression } from '../engine/day/processProgression'
 import { applyInvasionResolution as runApplyInvasionResolution } from '../engine/invasion/processInvasion'
@@ -30,6 +30,7 @@ interface GameStore {
   adjustResident(instanceId: string, raceId: string, delta: 1 | -1): boolean
   purchaseShopItem(itemId: string): boolean
   hireMercenary(contractId: string): boolean
+  recruitResident(offerId: string): boolean
   performNpcService(serviceId: string): boolean
   repairWithBlacksmith(instanceId: string): boolean
   chooseEvent(choiceId: string): boolean
@@ -168,6 +169,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   hireMercenary: (contractId) => {
     try { set({ game: runHireMercenary(get().game, contractId), lastActionError: null }); return true }
     catch (error) { set({ lastActionError: error instanceof Error ? error.message : '용병 고용에 실패했습니다.' }); return false }
+  },
+
+  recruitResident: (offerId) => {
+    try { set({ game: runRecruitResident(get().game, offerId), lastActionError: null }); return true }
+    catch (error) { set({ lastActionError: error instanceof Error ? error.message : '주민 모집에 실패했습니다.' }); return false }
   },
 
   performNpcService: (serviceId) => {

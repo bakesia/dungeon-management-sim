@@ -4,10 +4,11 @@ import { facilityDefinitions } from './facilities/facilities'
 import { initialFacilityPlacements, initialPopulationGroups } from './initialGame'
 import { invaderDefinitions } from './invaders/invaders'
 import { npcDefinitions } from './npcs/npcs'
-import { mercenaryDefinitions, npcServiceDefinitions, shopItemDefinitions } from './npcs/services'
+import { mercenaryDefinitions, npcServiceDefinitions, recruitmentOfferDefinitions, shopItemDefinitions } from './npcs/services'
 import { raceDefinitions } from './races/races'
 import { resourceDefinitions } from './resources/resources'
 import { tierDefinitions } from './tiers/tiers'
+import { gameIconDefinitionById } from './icons/gameIcons'
 
 function findDuplicateIds(label: string, ids: string[]): string[] {
   const seen = new Set<string>()
@@ -28,12 +29,17 @@ export function validateContent(): void {
     ...findDuplicateIds('npc', npcDefinitions.map((item) => item.id)),
     ...findDuplicateIds('shop item', shopItemDefinitions.map((item) => item.id)),
     ...findDuplicateIds('mercenary', mercenaryDefinitions.map((item) => item.id)),
+    ...findDuplicateIds('recruitment offer', recruitmentOfferDefinitions.map((item) => item.id)),
     ...findDuplicateIds('npc service', npcServiceDefinitions.map((item) => item.id)),
     ...findDuplicateIds('facility', facilityDefinitions.map((item) => item.id)),
     ...findDuplicateIds('event', eventDefinitions.map((item) => item.id)),
     ...findDuplicateIds('tier', tierDefinitions.map((item) => item.id)),
     ...findDuplicateIds('tier level', tierDefinitions.map((item) => String(item.level))),
     ...findDuplicateIds('invader', invaderDefinitions.map((item) => item.id)),
+    ...findDuplicateIds('content icon', [
+      ...resourceDefinitions.map((item) => item.iconId),
+      ...facilityDefinitions.map((item) => item.iconId),
+    ]),
   ]
 
   const resourceIds = new Set(resourceDefinitions.map((item) => item.id))
@@ -103,11 +109,18 @@ export function validateContent(): void {
     })
   })
 
+  resourceDefinitions.forEach((resource) => {
+    if (!Number.isFinite(resource.baseCapacity) || resource.baseCapacity <= 0) errors.push(`Resource "${resource.id}" has an invalid baseCapacity.`)
+    if (!gameIconDefinitionById[resource.iconId]) errors.push(`Missing icon asset mapping "${resource.iconId}" for resource "${resource.id}".`)
+  })
+
   facilityDefinitions.forEach((facility) => {
     const sortedLevels = [...facility.levels].map((level) => level.level).sort((a, b) => a - b)
     const levelNumbers = sortedLevels.map(String)
     errors.push(...findDuplicateIds(`facility level (${facility.id})`, levelNumbers))
     if (!tierLevels.has(facility.requiredTier)) errors.push(`Facility "${facility.id}" references unknown requiredTier ${facility.requiredTier}.`)
+    if (facility.role.trim().length === 0) errors.push(`Facility "${facility.id}" has no role description.`)
+    if (!gameIconDefinitionById[facility.iconId]) errors.push(`Missing icon asset mapping "${facility.iconId}" for facility "${facility.id}".`)
     if (sortedLevels.some((level, index) => level !== index + 1)) errors.push(`Facility "${facility.id}" levels must be consecutive from 1.`)
     facility.requirements.forEach((condition) => validateCondition(condition, `facility "${facility.id}"`))
     validateCost(facility.buildCost, `facility "${facility.id}" buildCost`)
@@ -127,6 +140,10 @@ export function validateContent(): void {
 
     facility.levels.forEach((level) => {
       if ((level.staffSlots ?? 0) < 0) errors.push(`Facility "${facility.id}" level ${level.level} has negative staffSlots.`)
+      if (!Number.isFinite(level.goldMaintenance ?? 0) || (level.goldMaintenance ?? 0) < 0) errors.push(`Facility "${facility.id}" level ${level.level} has invalid goldMaintenance.`)
+      Object.entries(level.storageCapacity ?? {}).forEach(([resourceId, amount]) => {
+        if (!resourceIds.has(resourceId) || typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) errors.push(`Facility "${facility.id}" level ${level.level} has invalid capacity modifier for "${resourceId}".`)
+      })
       if (level.upgradeCost) validateCost(level.upgradeCost, `facility "${facility.id}" level ${level.level} upgradeCost`)
       level.dailyEffects.forEach((effect) => validateEffect(effect, `facility "${facility.id}" level ${level.level}`))
       level.maintenanceEffects?.forEach((effect) => validateEffect(effect, `facility "${facility.id}" level ${level.level}`))
@@ -147,6 +164,9 @@ export function validateContent(): void {
 
   eventDefinitions.forEach((event) => {
     if (event.choices.length === 0) errors.push(`Event "${event.id}" has no choices.`)
+    if (event.choices.every((choice) => (choice.conditions?.length ?? 0) > 0)) {
+      errors.push(`Event "${event.id}" has no unconditional fallback choice and may have zero eligible choices.`)
+    }
     errors.push(...findDuplicateIds(`event choice (${event.id})`, event.choices.map((choice) => choice.id)))
     event.conditions.forEach((condition) => validateCondition(condition, `event "${event.id}"`))
     event.choices.forEach((choice) => {
@@ -162,8 +182,11 @@ export function validateContent(): void {
     if (!tierLevels.has(invader.allowedTierMin) || !tierLevels.has(invader.allowedTierMax)) {
       errors.push(`Invader "${invader.id}" references an unknown tier level.`)
     }
-    if (invader.combatPower < 0 || invader.raidPower < 0) {
-      errors.push(`Invader "${invader.id}" has negative combat or raid power.`)
+    if (invader.powerRange.min < 0 || invader.powerRange.max < invader.powerRange.min || invader.raidPower < 0) {
+      errors.push(`Invader "${invader.id}" has an invalid combat power range or raid power.`)
+    }
+    if (invader.minimumFame < 0 || invader.weight <= 0) {
+      errors.push(`Invader "${invader.id}" has invalid fame or weight data.`)
     }
     invader.rewards.forEach((effect) => validateEffect(effect, `invader "${invader.id}"`))
   })
@@ -171,6 +194,11 @@ export function validateContent(): void {
   npcDefinitions.forEach((npc) => npc.unlockConditions.forEach((condition) => validateCondition(condition, `npc "${npc.id}"`)))
   shopItemDefinitions.forEach((item) => { validateCost(item.cost, `shop item "${item.id}"`); item.effects.forEach((effect) => validateEffect(effect, `shop item "${item.id}"`)) })
   mercenaryDefinitions.forEach((item) => validateCost(item.cost, `mercenary "${item.id}"`))
+  recruitmentOfferDefinitions.forEach((item) => {
+    validateCost(item.cost, `recruitment offer "${item.id}"`)
+    if (!raceIds.has(item.raceId)) errors.push(`Recruitment offer "${item.id}" references unknown raceId "${item.raceId}".`)
+    if (item.count <= 0 || item.stock <= 0 || item.weight <= 0 || !tierLevels.has(item.minTier)) errors.push(`Recruitment offer "${item.id}" has invalid count, stock, weight, or tier data.`)
+  })
   npcServiceDefinitions.forEach((service) => { validateCost(service.cost, `npc service "${service.id}"`); service.effects.forEach((effect) => validateEffect(effect, `npc service "${service.id}"`)) })
 
   if (errors.length > 0) {

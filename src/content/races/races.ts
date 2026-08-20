@@ -22,7 +22,7 @@ export const raceDefinitions: RaceDefinition[] = [
     iconId: 'race_orc',
     modifiers: [
       { type: 'roomEfficiencyMultiplier', targetTag: 'labor', value: 0.9 },
-      { type: 'combatMultiplier', value: 1.25 },
+      { type: 'combatMultiplier', value: 1.18 },
     ],
     traits: ['strong'],
     tags: ['demon', 'large'],
@@ -34,7 +34,7 @@ export const raceDefinitions: RaceDefinition[] = [
     foodConsumption: 1,
     iconId: 'race_imp',
     modifiers: [
-      { type: 'roomEfficiencyMultiplier', targetTag: 'mana', value: 1.3 },
+      { type: 'roomEfficiencyMultiplier', targetTag: 'mana', value: 1.2 },
       { type: 'combatMultiplier', value: 0.85 },
     ],
     traits: ['mana_attuned'],

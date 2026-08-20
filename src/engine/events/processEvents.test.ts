@@ -53,7 +53,7 @@ describe('event engine', () => {
 
     const invasionState = createInitialGameState()
     invasionState.events.daysSinceDailyEvent = 1
-    invasionState.invasion.threat = 99
+    invasionState.invasion.daysSinceLastInvasion = 8
     const invaded = processInvasionRoll(invasionState, { next: () => 0 })
     expect(invaded.invasion.pendingResolution).not.toBeNull()
     expect(invaded.events.daysSinceDailyEvent).toBe(1)

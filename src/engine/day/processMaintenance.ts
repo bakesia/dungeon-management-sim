@@ -8,7 +8,7 @@ import { getFacilityLevel } from '../population/assignWorkers'
 export function getRoomGoldMaintenance(room: FacilityInstance): number {
   const definition = facilityDefinitionById[room.definitionId]
   if (!definition?.buildable) return 0
-  return gameRules.maintenance.goldByLevel[room.level] ?? 0
+  return getFacilityLevel(room)?.goldMaintenance ?? 0
 }
 
 export function getTotalGoldMaintenance(state: GameState): number {

@@ -25,7 +25,7 @@ describe('race-only resident assignment and production', () => {
     const manaState = buildFacility(orcs, 'mana_chamber', '0:0:-1')
     const room = manaState.dungeon.rooms[manaState.dungeon.tiles['0:0:-1']!.facilityInstanceId!]!
     room.residentAssignments = [{ raceId: 'imp', count: 1 }]
-    expect(calculateFacilityProductionMultiplier(manaState, room)).toBeCloseTo(1.3)
+    expect(calculateFacilityProductionMultiplier(manaState, room)).toBeCloseTo(1.2)
   })
 
   it('tracks global race availability and enforces room slots', () => {

@@ -6,7 +6,11 @@ import { checkConditions } from '../conditions/checkConditions'
 import { applyEffect, applyEffects } from '../effects/applyEffects'
 import { defaultRandomSource, type RandomSource } from '../random'
 
-export function getEligibleEvents(state: GameState): EventDefinition[] {
+export function getEligibleChoices(state: GameState, event: EventDefinition): EventChoiceDefinition[] {
+  return event.choices.filter((choice) => checkConditions(state, choice.conditions))
+}
+
+export function getConditionEligibleEvents(state: GameState): EventDefinition[] {
   const recentIds = new Set(state.events.history.slice(-gameRules.events.recentHistorySize).map((entry) => entry.eventId))
   return eventDefinitions.filter((event) => {
     if (event.once && state.events.completedEventIds.includes(event.id)) return false
@@ -16,6 +20,14 @@ export function getEligibleEvents(state: GameState): EventDefinition[] {
     if (latestOccurrence && state.day - latestOccurrence.day < cooldownDays) return false
     return checkConditions(state, event.conditions)
   })
+}
+
+export function getEventsWithNoEligibleChoices(state: GameState): EventDefinition[] {
+  return getConditionEligibleEvents(state).filter((event) => getEligibleChoices(state, event).length === 0)
+}
+
+export function getEligibleEvents(state: GameState): EventDefinition[] {
+  return getConditionEligibleEvents(state).filter((event) => getEligibleChoices(state, event).length > 0)
 }
 
 export function getEligibleDailyEvents(state: GameState): EventDefinition[] {

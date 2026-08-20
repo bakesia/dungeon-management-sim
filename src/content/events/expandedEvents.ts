@@ -25,6 +25,7 @@ export const expandedEventDefinitions: EventDefinition[] = [
     choices: [
       { id: 'extract', text: '결정을 떼어낸다', conditions: [{ type: 'resourceAtLeast', resourceId: 'material', amount: 4 }], effects: [{ type: 'addResource', resourceId: 'mana', amount: 13 }, { type: 'addResource', resourceId: 'material', amount: -4 }, { type: 'addLog', category: 'resource', message: '채굴 도구를 소모해 마력 결정을 얻었습니다. [마력 +13, 자재 -4]' }] },
       { id: 'stabilize', text: '결정과 마력을 코어에 연결한다', conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 6 }], effects: [{ type: 'addResource', resourceId: 'mana', amount: -6 }, { type: 'changeCoreHp', amount: 10 }, { type: 'addLog', category: 'event', message: '결정의 기운이 코어를 보강했습니다. [마력 -6, 코어 HP +10]' }] },
+      { id: 'leave', text: '불안정한 결정을 건드리지 않는다', effects: [{ type: 'addLog', category: 'event', message: '마력 결정 군락을 표시하고 지나쳤습니다.' }] },
     ],
   },
   {
@@ -197,6 +198,7 @@ export const expandedEventDefinitions: EventDefinition[] = [
     choices: [
       { id: 'dispel', text: '마력으로 안개를 밀어낸다', conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 9 }], effects: [{ type: 'addResource', resourceId: 'mana', amount: -9 }, { type: 'addLog', category: 'event', message: '붉은 안개를 던전 밖으로 밀어냈습니다. [마력 -9]' }] },
       { id: 'seal_rooms', text: '시설 문을 닫고 지나가길 기다린다', conditions: [{ type: 'resourceAtLeast', resourceId: 'food', amount: 6 }], effects: [{ type: 'addResource', resourceId: 'food', amount: -6 }, { type: 'damageRandomRoom' }, { type: 'addLog', category: 'warning', message: '긴 대피로 식량을 소모했고 시설 하나가 부식되었습니다. [식량 -6]' }] },
+      { id: 'endure', text: '최소 인원만 남겨 안개를 견딜다', effects: [{ type: 'damageRandomRoom' }, { type: 'changeCoreHp', amount: -3 }, { type: 'addLog', category: 'warning', message: '자원은 아꼈지만 시설과 코어가 일부 손상되었습니다. [코어 HP -3]' }] },
     ],
   },
   {
@@ -217,10 +219,11 @@ export const expandedEventDefinitions: EventDefinition[] = [
   },
   {
     id: 'event_watch_signal', title: '감시 초소의 신호', text: '감시병이 먼 산길에서 수상한 횃불 행렬을 발견했습니다.',
-    conditions: [{ type: 'hasRoom', facilityId: 'watch_post' }], weight: 6, once: false, tags: ['external', 'defense'],
+    conditions: [{ type: 'hasRoom', facilityId: 'guard_post' }], weight: 6, once: false, tags: ['external', 'defense'],
     choices: [
       { id: 'prepare', text: '방어 물자를 미리 배치한다', conditions: [{ type: 'resourceAtLeast', resourceId: 'material', amount: 6 }], effects: [{ type: 'addResource', resourceId: 'material', amount: -6 }, { type: 'addLog', category: 'invasion', message: '감시 신호에 따라 방어 물자를 배치했습니다. [자재 -6]' }] },
       { id: 'trade', text: '행렬에 은밀히 접근해 거래한다', conditions: [{ type: 'resourceAtLeast', resourceId: 'gold', amount: 10 }], effects: [{ type: 'addResource', resourceId: 'gold', amount: -10 }, { type: 'addResource', resourceId: 'food', amount: 18 }, { type: 'addLog', category: 'resource', message: '여행자들과 식량을 거래했습니다. [골드 -10, 식량 +18]' }] },
+      { id: 'observe', text: '경계를 강화하고 행렬을 보낸다', effects: [{ type: 'changeFame', amount: -1 }, { type: 'addLog', category: 'invasion', message: '경비대가 입구를 숨겨 던전의 소문을 잠재웠습니다. [명성 -1]' }] },
     ],
   },
 ]

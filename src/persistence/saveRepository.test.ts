@@ -20,7 +20,7 @@ describe('DexieSaveRepository', () => {
     game = advanceDay(game, { randomSource: { next: () => 0.99 } })
     game.currentTierId = 'tier_3'
     game.core.hp = 64
-    game.invasion = { daysSinceLastInvasion: 1, totalDefenses: 4, totalWins: 3, totalLosses: 1, lastEncounter: null, threat: 44, intel: { powerRange: true, invaderCategory: false, arrivalEstimate: false }, pendingResolution: null }
+    game.invasion = { daysSinceLastInvasion: 1, totalDefenses: 4, totalWins: 3, totalLosses: 1, lastEncounter: null, fame: 44, raidPressure: 0.07, intel: { powerRange: true, invaderCategory: false, arrivalEstimate: false }, pendingResolution: null }
     game.statistics.successfulDefenses = 3
     game.npcs.npc_merchant = { npcId: 'npc_merchant', discovered: true, joined: true, unlockedAtDay: 2 }
     game.shop.offerings = [{ itemId: 'emergency_food', stock: 1 }]

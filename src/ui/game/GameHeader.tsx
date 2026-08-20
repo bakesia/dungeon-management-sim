@@ -2,7 +2,9 @@ import { Menu } from 'lucide-react'
 import { resourceDefinitions } from '../../content/resources/resources'
 import { selectPopulationCapacity, selectPopulationTotal } from '../../state/gameSelectors'
 import type { GameState } from '../../types/game'
-import { getThreatLevel } from '../../engine/invasion/processInvasion'
+import { getFameLevel } from '../../engine/invasion/processInvasion'
+import { getResourceCapacity, isResourceOverCapacity } from '../../engine/resources/resourceCapacity'
+import { GameIcon } from '../icons/GameIcon'
 
 interface GameHeaderProps {
   state: GameState
@@ -21,22 +23,30 @@ export function GameHeader({ state, onOpenMenu }: GameHeaderProps) {
       </div>
       <div className="day-counter"><span>DAY</span><strong>{state.day}</strong></div>
       <div className="resource-bar" aria-label="던전 자원">
-        {resourceDefinitions.map((resource) => (
-          <div className="resource-item" key={resource.id}>
-            <span className="resource-item__dot" style={{ backgroundColor: resource.color }} />
-            <span className="resource-item__label">{resource.shortName}</span>
-            <strong>{state.resources[resource.id] ?? 0}</strong>
-          </div>
-        ))}
+        {resourceDefinitions.map((resource) => {
+          const isOverCapacity = isResourceOverCapacity(state, resource.id)
+          return (
+            <div
+              className={`resource-item${isOverCapacity ? ' is-over-capacity' : ''}`}
+              key={resource.id}
+              title={`${resource.name} 저장량${isOverCapacity ? ' · 저장 한도 초과: 추가 획득 불가' : ''}`}
+            >
+              <GameIcon iconId={resource.iconId} label={resource.name} size={20} />
+              <span className="resource-item__label">{resource.shortName}</span>
+              <strong>{state.resources[resource.id] ?? 0}<small>/ {getResourceCapacity(state, resource.id)}</small></strong>
+              {isOverCapacity && <span className="resource-item__capacity-state">OVER</span>}
+            </div>
+          )
+        })}
         <div className="resource-item">
-          <span className="resource-item__dot resource-item__dot--population" />
+          <GameIcon iconId="hud_population" label="인구" size={20} />
           <span className="resource-item__label">POP</span>
           <strong>{population}/{populationCapacity}</strong>
         </div>
-        <div className="resource-item resource-item--threat" title="100에 도달하면 침입이 강제로 발생합니다.">
-          <span className="resource-item__dot resource-item__dot--threat" />
-          <span className="resource-item__label">위협</span>
-          <strong><small>{getThreatLevel(state.invasion.threat)}</small>{state.invasion.threat}/100</strong>
+        <div className="resource-item resource-item--fame" title="던전의 명성입니다. 명성이 높을수록 더 강한 침입자와 큰 보상이 등장합니다.">
+          <GameIcon iconId="hud_fame" label="명성" size={20} />
+          <span className="resource-item__label">명성</span>
+          <strong><small>{getFameLevel(state.invasion.fame)}</small>{state.invasion.fame}</strong>
         </div>
       </div>
       <button className="menu-button" type="button" onClick={onOpenMenu} aria-label="메뉴 열기">

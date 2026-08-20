@@ -7,16 +7,17 @@ import { buildFacility } from '../construction/facilities'
 import { calculateDungeonDefense } from '../invasion/calculateDungeonDefense'
 
 describe('facility maintenance', () => {
-  it('uses the balance table by level and never charges the Core', () => {
+  it('uses facility-level data and never charges the Core', () => {
     const state = createInitialGameState()
     expect(getRoomGoldMaintenance(state.dungeon.rooms['facility-core-1']!)).toBe(0)
-    expect(getTotalGoldMaintenance(state)).toBe(2)
+    expect(getTotalGoldMaintenance(state)).toBe(1)
     state.dungeon.rooms['facility-mine-1']!.level = 3
-    expect(getTotalGoldMaintenance(state)).toBe(4)
+    expect(getTotalGoldMaintenance(state)).toBe(2)
   })
 
   it('pays a single total without debt and applies a predictable shortage penalty', () => {
-    const state = createInitialGameState()
+    let state = createInitialGameState()
+    state = buildFacility(state, 'guard_post', '0:0:-1')
     state.resources.gold = 1
     const short = processMaintenance(state)
     expect(short.resources.gold).toBe(0)
@@ -39,16 +40,6 @@ describe('facility maintenance', () => {
     expect(produced.resources.material - state.resources.material).toBe(4)
   })
 
-  it('applies the same-day penalty to defense', () => {
-    let state = createInitialGameState()
-    state = buildFacility(state, 'guard_post', '0:0:-1')
-    state = adjustResidentAssignment(state, state.dungeon.tiles['0:0:-1']!.facilityInstanceId!, 'goblin', 1)
-    state = adjustResidentAssignment(state, state.dungeon.tiles['0:0:-1']!.facilityInstanceId!, 'goblin', 1)
-    const fullyPaid = processMaintenance(state)
-    const shortState = { ...state, resources: { ...state.resources, gold: 0 } }
-    const unpaid = processMaintenance(shortState)
-    expect(calculateDungeonDefense(unpaid)).toBeLessThan(calculateDungeonDefense(fullyPaid))
-  })
 
   it('applies the same-day penalty to defense', () => {
     let state = createInitialGameState()

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { applyEffect } from '../effects/applyEffects'
 import { createInitialGameState } from '../game/createInitialGameState'
 import { calculateDungeonDefense } from '../invasion/calculateDungeonDefense'
-import { hireMercenary, isFeatureUnlocked, performNpcService, processNpcRuntime, purchaseShopItem, repairWithBlacksmith } from './npcServices'
+import { hireMercenary, isFeatureUnlocked, performNpcService, processNpcRuntime, purchaseShopItem, recruitResident, repairWithBlacksmith } from './npcServices'
 import { chooseEvent } from '../events/processEvents'
 
 function join(state: ReturnType<typeof createInitialGameState>, npcId: string) { return applyEffect(state, { type: 'joinNpc', npcId }) }
@@ -24,19 +24,50 @@ describe('NPC services', () => {
     expect(state.shop.offerings.find((item) => item.itemId === 'emergency_food')?.stock).toBe(1)
   })
 
+  it('does not charge for a resource item when every reward storage is full', () => {
+    const state = join(createInitialGameState(), 'npc_merchant')
+    state.resources.food = 150
+    expect(() => purchaseShopItem(state, 'emergency_food')).toThrow('저장 공간이 부족')
+    expect(state.resources.gold).toBe(100)
+  })
+
   it('adds temporary mercenary defense and mana support effects', () => {
     let state = join(createInitialGameState(), 'npc_tavern_keeper')
     const baseDefense = calculateDungeonDefense(state)
     state = hireMercenary(state, 'orc_mercenaries')
-    expect(calculateDungeonDefense(state)).toBe(baseDefense + 25)
-    expect(state.resources.gold).toBe(60)
+    expect(calculateDungeonDefense(state)).toBe(baseDefense + 17)
+    expect(state.resources.gold).toBe(62)
 
     state = join(state, 'npc_mage'); state.resources.mana = 100
     state = performNpcService(state, 'arcane_barrier')
-    expect(calculateDungeonDefense(state)).toBe(baseDefense + 50)
-    expect(state.resources.mana).toBe(70)
+    expect(calculateDungeonDefense(state)).toBe(baseDefense + 33)
+    expect(state.resources.mana).toBe(75)
     state.day = state.activeMercenaries[0]!.expiresOnDay
     expect(processNpcRuntime(state).activeMercenaries).toHaveLength(0)
+  })
+
+  it('recruits permanent residents separately from temporary mercenaries', () => {
+    let state = join(createInitialGameState(), 'npc_tavern_keeper')
+    state.dungeon.rooms['facility-quarters-1']!.level = 2
+    state = recruitResident(state, 'recruit_orc')
+    expect(state.population.find((group) => group.raceId === 'orc')?.count).toBe(1)
+    expect(state.resources).toMatchObject({ gold: 74, food: 28 })
+    expect(state.tavern.recruitmentOffers.find((offer) => offer.offerId === 'recruit_orc')?.remaining).toBe(0)
+    expect(state.activeMercenaries).toHaveLength(0)
+    expect(() => recruitResident(state, 'recruit_orc')).toThrow('모집 주기')
+  })
+
+  it('blocks recruitment at capacity and refreshes recruitment independently', () => {
+    const state = join(createInitialGameState(), 'npc_tavern_keeper')
+    expect(() => recruitResident(state, 'recruit_goblin_pair')).toThrow('숙소가 부족')
+    state.day = 5
+    state.currentTierId = 'tier_2'
+    state.tavern.lastRefreshDay = 5
+    state.tavern.recruitmentOffers = []
+    const refreshed = processNpcRuntime(state, { next: () => 0 })
+    expect(refreshed.tavern.offers).toEqual(state.tavern.offers)
+    expect(refreshed.tavern.recruitmentOffers).toHaveLength(3)
+    expect(refreshed.tavern.lastRecruitmentRefreshDay).toBe(5)
   })
 
   it('refreshes shop stock and applies healer and informant effects', () => {

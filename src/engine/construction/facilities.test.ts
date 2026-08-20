@@ -26,10 +26,12 @@ describe('facility construction', () => {
 
   it('uses facility data to enforce tier unlocks', () => {
     const state = createInitialGameState()
+    expect(canBuildFacility(state, 'mana_chamber', tileId(0, -1)).allowed).toBe(false)
     expect(canBuildFacility(state, 'training_ground', tileId(0, -1)).allowed).toBe(false)
 
-    state.currentTierId = 'tier_3'
+    state.currentTierId = 'tier_2'
     state.resources.material = 100
-    expect(canBuildFacility(state, 'training_ground', tileId(0, -1)).allowed).toBe(true)
+    expect(canBuildFacility(state, 'mana_chamber', tileId(0, -1)).allowed).toBe(true)
+    expect(canBuildFacility(state, 'trap_room', tileId(0, -1)).allowed).toBe(true)
   })
 })

@@ -3,6 +3,8 @@ import type { GameLogEntry, GameState, PopulationGroup } from '../../types/game'
 import { getPopulationSpace } from '../population/populationMetrics'
 import { facilityDefinitionById } from '../../content/facilities/facilities'
 import { defaultRandomSource } from '../random'
+import { previewResourceChange } from '../resources/resourceCapacity'
+import { resourceDefinitionById } from '../../content/resources/resources'
 
 function reconcileResidentAssignments(state: GameState, population: PopulationGroup[]): GameState['dungeon'] {
   const remaining = new Map(population.map((group) => [group.raceId, group.count]))
@@ -23,11 +25,14 @@ function reconcileResidentAssignments(state: GameState, population: PopulationGr
 function createLogEntry(state: GameState, effect: Extract<EffectDefinition, { type: 'addLog' }>): GameLogEntry {
   return {
     id: `log-${state.day}-${state.logs.length + 1}`,
-    day: state.day,
+    day: effect.logDay ?? state.day,
     message: effect.message,
     category: effect.category ?? 'system',
     presentation: effect.presentation ?? 'instant',
     sound: effect.sound,
+    presentationGroupId: effect.presentationGroupId,
+    presentationSequence: effect.presentationSequence,
+    presentationPriority: effect.presentationPriority,
   }
 }
 
@@ -35,19 +40,23 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
   const updatedAt = now.toISOString()
 
   if (effect.type === 'addResource') {
-    const currentAmount = state.resources[effect.resourceId]
-    if (currentAmount === undefined) {
-      throw new Error(`Unknown resourceId "${effect.resourceId}" referenced by addResource effect.`)
-    }
-
-    return {
+    const change = previewResourceChange(state, effect.resourceId, effect.amount)
+    const nextState: GameState = {
       ...state,
       resources: {
         ...state.resources,
-        [effect.resourceId]: Math.max(0, currentAmount + effect.amount),
+        [effect.resourceId]: change.next,
       },
       metadata: { ...state.metadata, updatedAt },
     }
+    if (change.overflow <= 0) return nextState
+
+    const resourceName = resourceDefinitionById[effect.resourceId]?.name ?? effect.resourceId
+    return applyEffect(nextState, {
+      type: 'addLog',
+      category: 'warning',
+      message: `[저장 한도] ${resourceName} +${change.applied} 저장. 공간 부족으로 ${change.overflow} 손실.`,
+    }, now)
   }
 
   if (effect.type === 'setFlag') {
@@ -214,10 +223,10 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
     }
   }
 
-  if (effect.type === 'changeThreat') {
+  if (effect.type === 'changeFame') {
     return {
       ...state,
-      invasion: { ...state.invasion, threat: Math.min(100, Math.max(0, state.invasion.threat + effect.amount)) },
+      invasion: { ...state.invasion, fame: Math.max(0, state.invasion.fame + effect.amount) },
       metadata: { ...state.metadata, updatedAt },
     }
   }

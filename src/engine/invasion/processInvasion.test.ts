@@ -3,7 +3,7 @@ import { invaderDefinitionById } from '../../content/invaders/invaders'
 import type { RandomSource } from '../random'
 import { buildFacility } from '../construction/facilities'
 import { createInitialGameState } from '../game/createInitialGameState'
-import { applyInvasionResolution, getDailyThreatGain, processInvasionRoll, resolveInvasion } from './processInvasion'
+import { applyInvasionResolution, getEligibleInvaders, getFameInvasionChance, processInvasionRoll, resolveInvasion } from './processInvasion'
 
 function sequenceRandom(values: number[]): RandomSource {
   let index = 0
@@ -11,46 +11,42 @@ function sequenceRandom(values: number[]): RandomSource {
 }
 
 describe('invasion engine', () => {
-  it('applies data rewards and records a defense victory', () => {
+  it('applies data rewards, fame, and an atomic defense report', () => {
     let state = createInitialGameState()
     state.currentTierId = 'tier_2'
     state = buildFacility(state, 'trap_room', '0:0:-1')
     const resolution = resolveInvasion(state, invaderDefinitionById.invader_wandering_adventurer!, { next: () => 0.99 })
-    expect(state.resources.gold).toBe(100)
     const next = applyInvasionResolution({ ...state, invasion: { ...state.invasion, pendingResolution: resolution } }, resolution)
 
-    expect(next.resources.gold).toBe(125)
-    expect(next.resources.mana).toBe(24)
+    expect(next.resources.gold).toBe(118)
+    expect(next.resources.mana).toBe(23)
+    expect(next.invasion.fame).toBe(5)
     expect(next.invasion.totalWins).toBe(1)
     expect(next.statistics.successfulDefenses).toBe(1)
     expect(next.logs.at(-1)?.message).toContain('방어 성공')
+    expect(next.logs.at(-1)?.presentationGroupId).toContain('invasion-')
     expect(applyInvasionResolution(next, resolution)).toBe(next)
   })
 
-  it('derives defeat damage from raidPower and can trigger game over', () => {
+  it('always damages the core and one resource on defeat, then can trigger game over', () => {
     const state = createInitialGameState()
-    const resolution = resolveInvasion(state, invaderDefinitionById.invader_beginner_party!, { next: () => 0.99 })
+    const resolution = resolveInvasion(state, invaderDefinitionById.invader_elite_subjugation!, sequenceRandom([0, 0, 0.99]))
     const defeated = applyInvasionResolution({ ...state, invasion: { ...state.invasion, pendingResolution: resolution } }, resolution)
 
-    expect(defeated.resources).toMatchObject({ gold: 91, material: 73, food: 35 })
-    expect(defeated.core.hp).toBe(86)
+    expect(defeated.resources.gold).toBe(80)
+    expect(defeated.core.hp).toBe(77)
     expect(defeated.invasion.totalLosses).toBe(1)
+    expect(defeated.invasion.fame).toBe(0)
 
-    const gameOverResolution = resolveInvasion(state, {
-      id: 'test_overwhelming_force', name: '압도적 병력', combatPower: 999, raidPower: 200,
-      allowedTierMin: 1, allowedTierMax: 5, rewards: [], tags: ['test'],
-    }, { next: () => 0.99 })
+    const gameOverResolution = { ...resolution, id: 'game-over-resolution', effects: [{ type: 'changeCoreHp' as const, amount: -200 }] }
     const gameOver = applyInvasionResolution({ ...state, invasion: { ...state.invasion, pendingResolution: gameOverResolution } }, gameOverResolution)
     expect(gameOver.core.hp).toBe(0)
     expect(gameOver.status).toBe('gameOver')
   })
 
-  it('damages at most one eligible facility on a defeat using the central RNG', () => {
+  it('damages at most one eligible facility as optional secondary damage', () => {
     const state = createInitialGameState()
-    const resolution = resolveInvasion(state, {
-      id: 'test_raiders', name: '시험 약탈대', combatPower: 999, raidPower: 20,
-      allowedTierMin: 1, allowedTierMax: 5, rewards: [], tags: ['test'],
-    }, sequenceRandom([0.99, 0, 0]))
+    const resolution = resolveInvasion(state, invaderDefinitionById.invader_elite_subjugation!, sequenceRandom([0, 0, 0, 0.9, 0]))
     const defeated = applyInvasionResolution({ ...state, invasion: { ...state.invasion, pendingResolution: resolution } }, resolution)
 
     const damagedRooms = Object.values(defeated.dungeon.rooms).filter((room) => room.condition === 'damaged')
@@ -60,38 +56,45 @@ describe('invasion engine', () => {
 
   it('provides two complete safe days after an invasion', () => {
     let state = createInitialGameState()
-    state.invasion = { daysSinceLastInvasion: 0, totalDefenses: 1, totalWins: 0, totalLosses: 1, lastEncounter: null, threat: 40, intel: { powerRange: false, invaderCategory: false, arrivalEstimate: false }, pendingResolution: null }
+    state.invasion = { ...state.invasion, daysSinceLastInvasion: 0, totalDefenses: 1, totalLosses: 1, fame: 40 }
 
     state = processInvasionRoll(state, { next: () => 0 })
     expect(state.invasion.daysSinceLastInvasion).toBe(1)
-    expect(state.invasion.totalDefenses).toBe(1)
-    expect(state.invasion.threat).toBe(40)
+    expect(state.invasion.fame).toBe(40)
     state = processInvasionRoll(state, { next: () => 0 })
     expect(state.invasion.daysSinceLastInvasion).toBe(2)
-    expect(state.invasion.totalDefenses).toBe(1)
+    expect(state.invasion.pendingResolution).toBeNull()
 
-    state = processInvasionRoll(state, sequenceRandom([0, 0, 0.99]))
+    state = processInvasionRoll(state, sequenceRandom([0, 0, 0]))
     expect(state.invasion.pendingResolution).not.toBeNull()
-    const resolution = state.invasion.pendingResolution!
-    state = applyInvasionResolution(state, resolution)
-    expect(state.invasion.totalDefenses).toBe(2)
-    expect(state.invasion.threat).toBe(15)
   })
 
-  it('forces an invasion at maximum threat even when the random roll would fail', () => {
+  it('forces an invasion after the hidden pity limit without changing fame', () => {
     const state = createInitialGameState()
-    state.invasion.threat = 99
-    const next = processInvasionRoll(state, sequenceRandom([0.99, 0, 0.99, 0.99]))
-    expect(next.invasion.totalDefenses).toBe(0)
+    state.invasion.daysSinceLastInvasion = 8
+    const next = processInvasionRoll(state, sequenceRandom([0.99, 0, 0]))
     expect(next.invasion.pendingResolution).not.toBeNull()
+    expect(next.invasion.fame).toBe(0)
   })
 
-  it('uses tier and population in daily threat gain and permits early random invasions', () => {
+  it('uses fame as a soft chance bonus and unlocks stronger invader pools', () => {
     const state = createInitialGameState()
+    const baseChance = getFameInvasionChance(state, 0)
+    state.invasion.fame = 100
+    expect(getFameInvasionChance(state, 0)).toBeGreaterThan(baseChance)
+    expect(getFameInvasionChance(state, 0)).toBeLessThanOrEqual(0.55)
+
+    state.currentTierId = 'tier_2'
+    expect(getEligibleInvaders(state).map((invader) => invader.id)).toContain('invader_veteran_party')
+
     state.currentTierId = 'tier_3'
-    state.population[0]!.count = 20
-    expect(getDailyThreatGain(state)).toBe(18)
-    state.invasion.threat = 40
-    expect(processInvasionRoll(state, sequenceRandom([0, 0, 0.99, 0.99])).invasion.pendingResolution).not.toBeNull()
+    expect(getEligibleInvaders(state).map((invader) => invader.id)).toEqual(['invader_veteran_party', 'invader_elite_subjugation'])
+  })
+
+  it('rolls actual combat power inside the invader range', () => {
+    const state = createInitialGameState()
+    const invader = invaderDefinitionById.invader_wandering_adventurer!
+    expect(resolveInvasion(state, invader, { next: () => 0 }).actualCombatPower).toBe(invader.powerRange.min)
+    expect(resolveInvasion(state, invader, { next: () => 0.999 }).actualCombatPower).toBe(invader.powerRange.max)
   })
 })

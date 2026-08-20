@@ -4,7 +4,7 @@ import type { GameState } from '../../types/game'
 import { getRoomConditionEfficiency } from '../construction/roomCondition'
 import { calculateFacilityEfficiency, getFacilityLevel, getRaceCombatMultiplier } from '../population/assignWorkers'
 
-const RESIDENT_BASE_COMBAT = 10
+export const RESIDENT_BASE_COMBAT = 6
 
 export interface DefenseContribution {
   sourceType: 'population' | 'room' | 'modifier' | 'mercenary'

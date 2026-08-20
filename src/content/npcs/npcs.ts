@@ -19,7 +19,7 @@ export const npcDefinitions: NpcDefinition[] = [
     id: 'npc_tavern_keeper', role: 'tavern_keeper', displayName: '펍 주인',
     description: '일정 기간 던전을 지킬 용병대를 중개합니다.',
     visitorText: '전사들이 쉬고 계약을 나눌 장소가 필요합니다. 주점을 맡겨 주시겠습니까?',
-    unlockConditions: [{ type: 'tierAtLeast', level: 3 }],
+    unlockConditions: [{ type: 'tierAtLeast', level: 2 }, { type: 'dayAtLeast', day: 8 }],
     joinEventId: 'event_npc_tavern_join', featureId: 'tavern', tags: ['mercenary'],
   },
   {
@@ -38,10 +38,10 @@ export const npcDefinitions: NpcDefinition[] = [
   },
   {
     id: 'npc_informant', role: 'informant', displayName: '정보상',
-    description: '위협도와 다음 침입 후보를 분석합니다.',
+    description: '명성과 다음 침입 후보, 전투력 범위를 분석합니다.',
     visitorText: '인간 원정대의 움직임을 알고 싶다면 제 정보망을 받아들이십시오.',
     unlockConditions: [{ type: 'tierAtLeast', level: 3 }, { type: 'dayAtLeast', day: 12 }],
-    joinEventId: 'event_npc_informant_join', featureId: 'informant', tags: ['intel', 'threat'],
+    joinEventId: 'event_npc_informant_join', featureId: 'informant', tags: ['intel', 'fame'],
   },
 ]
 

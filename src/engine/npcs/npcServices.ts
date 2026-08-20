@@ -1,6 +1,7 @@
 import { gameRules } from '../../content/gameRules'
 import { npcDefinitionById } from '../../content/npcs/npcs'
-import { mercenaryDefinitionById, mercenaryDefinitions, npcServiceDefinitionById, shopItemDefinitionById, shopItemDefinitions } from '../../content/npcs/services'
+import { mercenaryDefinitionById, mercenaryDefinitions, npcServiceDefinitionById, recruitmentOfferDefinitionById, recruitmentOfferDefinitions, shopItemDefinitionById, shopItemDefinitions } from '../../content/npcs/services'
+import { raceDefinitionById } from '../../content/races/races'
 import { tierDefinitionById } from '../../content/tiers/tiers'
 import type { EffectDefinition, FeatureId, ResourceCost } from '../../types/content'
 import type { GameState } from '../../types/game'
@@ -8,6 +9,8 @@ import { applyEffect, applyEffects } from '../effects/applyEffects'
 import { defaultRandomSource, type RandomSource } from '../random'
 import { canAfford, formatResourceCost, payResourceCost } from '../resources/resourceCosts'
 import { getRepairCost } from '../construction/repairFacility'
+import { canStoreAnyPositiveResourceEffect } from '../resources/resourceCapacity'
+import { getPopulationSpace } from '../population/populationMetrics'
 
 export function isFeatureUnlocked(state: GameState, featureId: FeatureId): boolean {
   return Object.values(state.npcs).some((npc) => npc.joined && npcDefinitionById[npc.npcId]?.featureId === featureId)
@@ -28,6 +31,7 @@ export function purchaseShopItem(state: GameState, itemId: string, now = new Dat
   if (!item || !offering) throw new Error('현재 상점에 없는 물품입니다.')
   if (offering.stock <= 0) throw new Error('해당 물품은 품절되었습니다.')
   if (!canAfford(state, item.cost)) throw new Error(`구매 비용이 부족합니다: ${formatResourceCost(item.cost)}`)
+  if (!canStoreAnyPositiveResourceEffect(state, item.effects)) throw new Error('저장 공간이 부족해 해당 물품을 구매할 수 없습니다.')
   const paid = payResourceCost(state, item.cost, now)
   const purchased = finishService(paid, item.effects, `[상점] ${item.name} 구매 완료. [${formatResourceCost(item.cost)} 소모]`, now)
   return { ...purchased, shop: { ...purchased.shop, offerings: purchased.shop.offerings.map((entry) => entry.itemId === itemId ? { ...entry, stock: entry.stock - 1 } : entry) } }
@@ -42,6 +46,31 @@ export function hireMercenary(state: GameState, contractId: string, now = new Da
   const paid = payResourceCost(state, contract.cost, now)
   const logged = applyEffect(paid, { type: 'addLog', category: 'system', message: `[주점] ${contract.name} 고용. ${contract.durationDays} DAY 동안 방어력 +${contract.combatPower}` }, now)
   return { ...logged, activeMercenaries: [...logged.activeMercenaries, { contractId, hiredAtDay: state.day, expiresOnDay: state.day + contract.durationDays, combatPower: contract.combatPower }] }
+}
+
+export function recruitResident(state: GameState, offerId: string, now = new Date()): GameState {
+  requireFeature(state, 'tavern')
+  const definition = recruitmentOfferDefinitionById[offerId]
+  const offer = state.tavern.recruitmentOffers.find((entry) => entry.offerId === offerId)
+  if (!definition || !offer) throw new Error('현재 주점에서 모집 중인 주민이 아닙니다.')
+  if (offer.remaining <= 0) throw new Error('이번 모집 주기의 인원이 모두 합류했습니다.')
+  if (getPopulationSpace(state) < definition.count) throw new Error(`숙소가 부족합니다. 빈 수용 공간 ${definition.count}칸이 필요합니다.`)
+  if (!canAfford(state, definition.cost)) throw new Error(`모집 비용이 부족합니다: ${formatResourceCost(definition.cost)}`)
+
+  const paid = payResourceCost(state, definition.cost, now)
+  const recruited = applyEffect(paid, { type: 'addPopulation', raceId: definition.raceId, amount: definition.count }, now)
+  const raceName = raceDefinitionById[definition.raceId]?.name ?? definition.raceId
+  const logged = applyEffect(recruited, {
+    type: 'addLog', category: 'progression',
+    message: `[주민 모집] ${raceName} ${definition.count}명이 영구 합류했습니다. [${formatResourceCost(definition.cost)} 소모]`,
+  }, now)
+  return {
+    ...logged,
+    tavern: {
+      ...logged.tavern,
+      recruitmentOffers: logged.tavern.recruitmentOffers.map((entry) => entry.offerId === offerId ? { ...entry, remaining: entry.remaining - 1 } : entry),
+    },
+  }
 }
 
 export function performNpcService(state: GameState, serviceId: string, now = new Date()): GameState {
@@ -93,8 +122,17 @@ export function processNpcRuntime(state: GameState, randomSource: RandomSource =
   const shop = state.day - state.shop.lastRefreshDay >= gameRules.npcs.shopRefreshDays
     ? { lastRefreshDay: state.day, offerings: pickUnique(shopItemDefinitions.filter((item) => item.minTier <= tier), 3, randomSource).map((item) => ({ itemId: item.id, stock: item.stock })) }
     : state.shop
-  const tavern = state.day - state.tavern.lastRefreshDay >= gameRules.npcs.tavernRefreshDays
-    ? { lastRefreshDay: state.day, offers: pickUnique(mercenaryDefinitions.filter((item) => item.minTier <= tier), 3, randomSource).map((item) => item.id) }
-    : state.tavern
+  const refreshedMercenaries = state.day - state.tavern.lastRefreshDay >= gameRules.npcs.tavernRefreshDays
+  const refreshedRecruitment = state.day - state.tavern.lastRecruitmentRefreshDay >= gameRules.npcs.recruitmentRefreshDays
+  const tavern = {
+    lastRefreshDay: refreshedMercenaries ? state.day : state.tavern.lastRefreshDay,
+    lastRecruitmentRefreshDay: refreshedRecruitment ? state.day : state.tavern.lastRecruitmentRefreshDay,
+    offers: refreshedMercenaries
+      ? pickUnique(mercenaryDefinitions.filter((item) => item.minTier <= tier), 3, randomSource).map((item) => item.id)
+      : state.tavern.offers,
+    recruitmentOffers: refreshedRecruitment
+      ? pickUnique(recruitmentOfferDefinitions.filter((item) => item.minTier <= tier), 3, randomSource).map((item) => ({ offerId: item.id, remaining: item.stock }))
+      : state.tavern.recruitmentOffers,
+  }
   return { ...state, activeMercenaries, timedModifiers, shop, tavern }
 }

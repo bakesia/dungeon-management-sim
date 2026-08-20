@@ -9,10 +9,14 @@ import { getPopulationCapacity, getPopulationTotal } from '../../engine/populati
 import { canAfford, formatResourceCost } from '../../engine/resources/resourceCosts'
 import { selectCurrentTier } from '../../state/gameSelectors'
 import type { GameState } from '../../types/game'
+import type { FacilityDefinition, FeatureId } from '../../types/content'
 import { PopulationOverview } from '../population/PopulationOverview'
 import type { GamePreferences } from '../preferences/preferences'
 import { NpcHub } from '../npcs/NpcHub'
 import { getTotalGoldMaintenance } from '../../engine/day/processMaintenance'
+import { resourceDefinitions } from '../../content/resources/resources'
+import { getResourceCapacity, isResourceOverCapacity } from '../../engine/resources/resourceCapacity'
+import { GameIcon } from '../icons/GameIcon'
 
 interface GameMenuProps {
   state: GameState
@@ -26,15 +30,48 @@ interface GameMenuProps {
   onPreferenceChange: (key: keyof GamePreferences, value: boolean) => void
   onPurchase: (itemId: string) => boolean
   onHire: (contractId: string) => boolean
+  onRecruit: (offerId: string) => boolean
   onService: (serviceId: string) => boolean
   onBlacksmithRepair: (instanceId: string) => boolean
+  initialView?: MenuView
+  initialNpcFeature?: FeatureId | null
 }
 
-type MenuView = 'main' | 'build' | 'population' | 'dungeon' | 'npcs'
+export type MenuView = 'main' | 'build' | 'population' | 'dungeon' | 'npcs'
 
-export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onReturnToTitle, onSelectBuild, preferences, onPreferenceChange, onPurchase, onHire, onService, onBlacksmithRepair }: GameMenuProps) {
+function formatSignedAmount(amount: number): string {
+  return `${amount >= 0 ? '+' : ''}${amount}`
+}
+
+function describeBuildEffects(facility: FacilityDefinition): string[] {
+  const level = facility.levels[0]
+  if (!level) return [facility.role]
+  const effects = level.dailyEffects.flatMap((effect) => effect.type === 'addResource'
+    ? [`${resourceDefinitions.find((resource) => resource.id === effect.resourceId)?.name ?? effect.resourceId} ${formatSignedAmount(effect.amount)} / DAY`]
+    : [])
+  if (level.populationCapacity) effects.push(`인구 수용 +${level.populationCapacity}`)
+  for (const [resourceId, amount] of Object.entries(level.storageCapacity ?? {})) {
+    effects.push(`${resourceDefinitions.find((resource) => resource.id === resourceId)?.name ?? resourceId} 저장 +${amount}`)
+  }
+  if (level.defense) effects.push(`방어력 +${level.defense}`)
+  if (level.staffSlots) effects.push(`배치 인원 ${level.staffSlots}명`)
+  if (level.modifiers?.length) effects.push(facility.role)
+  return effects.length > 0 ? effects : [facility.role]
+}
+
+function describeMaintenance(facility: FacilityDefinition): string[] {
+  const level = facility.levels[0]
+  if (!level) return ['없음']
+  const maintenance = level.maintenanceEffects?.flatMap((effect) => effect.type === 'addResource'
+    ? [`${resourceDefinitions.find((resource) => resource.id === effect.resourceId)?.name ?? effect.resourceId} ${formatSignedAmount(effect.amount)} / DAY`]
+    : []) ?? []
+  if (level.goldMaintenance) maintenance.unshift(`골드 -${level.goldMaintenance} / DAY`)
+  return maintenance.length > 0 ? maintenance : ['없음']
+}
+
+export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onReturnToTitle, onSelectBuild, preferences, onPreferenceChange, onPurchase, onHire, onRecruit, onService, onBlacksmithRepair, initialView = 'main', initialNpcFeature = null }: GameMenuProps) {
   const tier = selectCurrentTier(state)
-  const [view, setView] = useState<MenuView>('main')
+  const [view, setView] = useState<MenuView>(initialView)
   const defense = calculateDungeonDefenseBreakdown(state)
   const currentTierLevel = tier?.level ?? 1
   const nextTier = [...tierDefinitions].sort((a, b) => a.level - b.level).find((item) => item.level === (tier?.level ?? 1) + 1)
@@ -107,10 +144,27 @@ export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onRetu
                 .filter((facility) => facility.buildable && facility.requiredTier <= currentTierLevel + 1)
                 .map((facility) => {
                   const isLocked = facility.requiredTier > currentTierLevel
+                  const canPay = canAfford(state, facility.buildCost)
+                  const requirements = [
+                    { met: !isLocked, label: `Tier ${facility.requiredTier}` },
+                    ...facility.requirements.map((condition) => {
+                      const progress = getConditionProgress(state, condition)
+                      return { met: progress.met, label: `${progress.label} ${progress.current}/${progress.target}` }
+                    }),
+                  ]
                   return (
-                    <button type="button" key={facility.id} onClick={() => selectBuild(facility.id)} disabled={isLocked || !canAfford(state, facility.buildCost)}>
-                      <span><strong>{facility.name}</strong><small>{facility.description}</small></span>
-                      <em>{isLocked ? `TIER ${facility.requiredTier} 해금` : formatResourceCost(facility.buildCost)}</em>
+                    <button className="build-card" type="button" key={facility.id} onClick={() => selectBuild(facility.id)} disabled={isLocked || !canPay}>
+                      <span className="build-card__header">
+                        <GameIcon iconId={facility.iconId} label={facility.name} size={46} />
+                        <span><strong>{facility.name}</strong><small>{facility.description}</small></span>
+                        <em>{isLocked ? 'LOCKED' : canPay ? 'READY' : '자원 부족'}</em>
+                      </span>
+                      <span className="build-card__sections">
+                        <span className="build-card__block"><small>건설 비용</small><strong>{formatResourceCost(facility.buildCost)}</strong></span>
+                        <span className="build-card__block"><small>필요 조건</small><strong>{requirements.map((requirement) => `${requirement.met ? '[충족]' : '[미충족]'} ${requirement.label}`).join(' · ')}</strong></span>
+                        <span className="build-card__block"><small>유지비</small><strong>{describeMaintenance(facility).join(' · ')}</strong></span>
+                        <span className="build-card__block build-card__block--wide"><small>시설 효과</small><strong>{describeBuildEffects(facility).join(' · ')}</strong></span>
+                      </span>
                     </button>
                   )
                 })}
@@ -137,6 +191,12 @@ export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onRetu
               <p><span>방어 성공</span><strong>{state.statistics.successfulDefenses}</strong></p>
               <p><span>던전 방어력</span><strong>{defense.total}</strong></p>
               <p><span>시설 유지비</span><strong>골드 {getTotalGoldMaintenance(state)} / DAY</strong></p>
+              <p><span>다음 DAY 예상 골드</span><strong>{state.resources.gold} → {Math.max(0, state.resources.gold - getTotalGoldMaintenance(state))}</strong></p>
+            </div>
+            <div className="capacity-overview">
+              {resourceDefinitions.map((resource) => <p className={isResourceOverCapacity(state, resource.id) ? 'is-over-capacity' : ''} key={resource.id}>
+                <GameIcon iconId={resource.iconId} size={20} /><span>{resource.name}</span><strong>{state.resources[resource.id] ?? 0} / {getResourceCapacity(state, resource.id)}</strong>
+              </p>)}
             </div>
             <p className="defense-breakdown">주민 {defense.residentDefense} + 시설 {defense.facilityDefense}</p>
             <h3>{nextTier ? `Tier ${nextTier.level} 승급 조건` : '최종 성장 완료'}</h3>
@@ -154,7 +214,7 @@ export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onRetu
             )}
           </section>
         )}
-        {view === 'npcs' && <section className="menu-subview"><button className="menu-back" type="button" onClick={() => setView('main')}><ArrowLeft className="size-3" />관리 메뉴</button><h3>던전의 협력자</h3><NpcHub state={state} onPurchase={onPurchase} onHire={onHire} onService={onService} onRepair={onBlacksmithRepair} /></section>}
+        {view === 'npcs' && <section className="menu-subview"><button className="menu-back" type="button" onClick={() => setView('main')}><ArrowLeft className="size-3" />관리 메뉴</button><h3>던전의 협력자</h3><NpcHub state={state} initialFeature={initialNpcFeature} onPurchase={onPurchase} onHire={onHire} onRecruit={onRecruit} onService={onService} onRepair={onBlacksmithRepair} /></section>}
         <p className="save-status" aria-live="polite">{(saveError ?? saveStatus) || 'DAY 종료 시 자동 저장됩니다.'}</p>
       </motion.aside>
     </motion.div>

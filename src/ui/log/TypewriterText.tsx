@@ -4,10 +4,11 @@ interface TypewriterTextProps {
   text: string
   enabled: boolean
   onComplete?: () => void
+  onSkip?: () => void
   className?: string
 }
 
-export function TypewriterText({ text, enabled, onComplete, className }: TypewriterTextProps) {
+export function TypewriterText({ text, enabled, onComplete, onSkip, className }: TypewriterTextProps) {
   const [length, setLength] = useState(enabled ? 0 : text.length)
   const didComplete = useRef(!enabled)
 
@@ -28,11 +29,18 @@ export function TypewriterText({ text, enabled, onComplete, className }: Typewri
     const skip = (event: KeyboardEvent) => {
       if (event.key !== 'Enter' && event.key !== ' ') return
       if (event.key === ' ') event.preventDefault()
+      onSkip?.()
       setLength(text.length)
     }
     window.addEventListener('keydown', skip)
     return () => window.removeEventListener('keydown', skip)
-  }, [enabled, length, text.length])
+  }, [enabled, length, onSkip, text.length])
 
-  return <p className={className} onClick={() => enabled && setLength(text.length)}>{text.slice(0, length)}{enabled && length < text.length && <span className="typing-caret">▌</span>}</p>
+  const skip = () => {
+    if (!enabled || length >= text.length) return
+    onSkip?.()
+    setLength(text.length)
+  }
+
+  return <p className={className} onClick={skip}>{text.slice(0, length)}{enabled && length < text.length && <span className="typing-caret">▌</span>}</p>
 }
