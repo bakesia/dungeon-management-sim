@@ -4,7 +4,7 @@ import { invaderDefinitions } from '../../content/invaders/invaders'
 import { resourceDefinitionById } from '../../content/resources/resources'
 import { tierDefinitionById } from '../../content/tiers/tiers'
 import type { EffectDefinition, InvaderDefinition } from '../../types/content'
-import type { GameLogEntry, GameState, InvasionResolution, PopulationGroup } from '../../types/game'
+import type { GameState, InvasionResolution, PopulationGroup } from '../../types/game'
 import { getRoomConditionEfficiency } from '../construction/roomCondition'
 import { applyEffect, applyEffects } from '../effects/applyEffects'
 import { calculateFacilityEfficiency, getFacilityLevel } from '../population/assignWorkers'
@@ -50,11 +50,11 @@ export function getFameInvasionChance(state: GameState, pressure = state.invasio
   return Math.min(0.55, tierChance + fameBonus + Math.min(pressure, gameRules.invasion.pity.maximumPressureBonus))
 }
 
-export function getFameLevel(fame: number): '무명' | '소문' | '주목' | '악명' | '전설' {
-  if (fame >= 100) return '전설'
-  if (fame >= 65) return '악명'
-  if (fame >= 30) return '주목'
-  if (fame >= 10) return '소문'
+export function getFameLevel(fame: number): '무명' | '소문난' | '주목받는' | '악명 높은' | '대악명' {
+  if (fame >= 100) return '대악명'
+  if (fame >= 65) return '악명 높은'
+  if (fame >= 30) return '주목받는'
+  if (fame >= 10) return '소문난'
   return '무명'
 }
 
@@ -75,7 +75,7 @@ function formatEffects(state: GameState, effects: EffectDefinition[]): string {
   const descriptions = effects.flatMap((effect) => {
     if (effect.type === 'addResource') return [`${resourceDefinitionById[effect.resourceId]?.name ?? effect.resourceId} ${effect.amount >= 0 ? '+' : ''}${effect.amount}`]
     if (effect.type === 'changeCoreHp') return [`코어 HP ${effect.amount >= 0 ? '+' : ''}${effect.amount}`]
-    if (effect.type === 'changeFame') return [`명성 ${effect.amount >= 0 ? '+' : ''}${effect.amount}`]
+    if (effect.type === 'changeFame') return [`악명 ${effect.amount >= 0 ? '+' : ''}${effect.amount}`]
     if (effect.type === 'removePopulation') return [`주민 -${effect.amount}`]
     if (effect.type === 'damageRoom') {
       const room = state.dungeon.rooms[effect.instanceId]
@@ -156,12 +156,6 @@ export function resolveInvasion(state: GameState, invader: InvaderDefinition, ra
   }
 }
 
-function insertAtomicInvasionLog(logs: GameLogEntry[], entry: GameLogEntry, startedOnDay: number): GameLogEntry[] {
-  const markerIndex = logs.findLastIndex((log) => log.day === startedOnDay && log.message === `DAY ${startedOnDay} 종료`)
-  const insertionIndex = markerIndex >= 0 ? markerIndex + 1 : logs.length
-  return [...logs.slice(0, insertionIndex), entry, ...logs.slice(insertionIndex)]
-}
-
 export function applyInvasionResolution(state: GameState, resolution: InvasionResolution, now = new Date()): GameState {
   if (state.invasion.pendingResolution?.id !== resolution.id) return state
   const invader = invaderDefinitions.find((definition) => definition.id === resolution.invaderId)
@@ -185,9 +179,6 @@ export function applyInvasionResolution(state: GameState, resolution: InvasionRe
     presentation: 'typewriter', sound: resolution.success ? 'defense_win' : 'defense_loss',
     message: `[침입 보고]\n${invader.name}\n예상 전투력 ${invader.powerRange.min}–${invader.powerRange.max}\n\n[방어 판정]\n실제 전투력 ${resolution.actualCombatPower}\n--------------------\n${contributionLines}\n--------------------\n던전 방어력 ${resolution.defensePower}\n\n[결과]\n${resolution.success ? '방어 성공' : '방어 실패'}\n${effectSummary}`,
   }, now)
-  const atomicEntry = nextState.logs.at(-1)
-  if (atomicEntry) nextState = { ...nextState, logs: insertAtomicInvasionLog(nextState.logs.slice(0, -1), atomicEntry, resolution.startedOnDay) }
-
   const sequence = nextState.invasion.totalDefenses + 1
   return {
     ...nextState,

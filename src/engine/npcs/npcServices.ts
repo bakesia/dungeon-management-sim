@@ -11,6 +11,7 @@ import { canAfford, formatResourceCost, payResourceCost } from '../resources/res
 import { getRepairCost } from '../construction/repairFacility'
 import { canStoreAnyPositiveResourceEffect } from '../resources/resourceCapacity'
 import { getPopulationSpace } from '../population/populationMetrics'
+import { updateNpcEligibility } from './npcEligibility'
 
 export function isFeatureUnlocked(state: GameState, featureId: FeatureId): boolean {
   return Object.values(state.npcs).some((npc) => npc.joined && npcDefinitionById[npc.npcId]?.featureId === featureId)
@@ -116,6 +117,7 @@ function pickUnique<T extends { id: string; weight: number }>(pool: T[], count: 
 }
 
 export function processNpcRuntime(state: GameState, randomSource: RandomSource = defaultRandomSource): GameState {
+  state = updateNpcEligibility(state)
   const tier = tierDefinitionById[state.currentTierId]?.level ?? 1
   const activeMercenaries = state.activeMercenaries.filter((item) => state.day < item.expiresOnDay)
   const timedModifiers = state.timedModifiers.filter((item) => !item.expiresOnDay || state.day < item.expiresOnDay)

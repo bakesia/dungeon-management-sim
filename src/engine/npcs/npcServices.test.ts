@@ -16,6 +16,14 @@ describe('NPC services', () => {
     expect(isFeatureUnlocked(joined, 'shop')).toBe(true)
   })
 
+  it('joins the Tavern keeper when the standard food and gold costs are available', () => {
+    const state = createInitialGameState(); state.currentTierId = 'tier_2'; state.day = 8; state.events.currentEventId = 'event_npc_tavern_join'
+    const joined = chooseEvent(state, 'standard')
+    expect(joined.resources).toMatchObject({ gold: 60, food: 25 })
+    expect(joined.npcs.npc_tavern_keeper?.joined).toBe(true)
+    expect(isFeatureUnlocked(joined, 'tavern')).toBe(true)
+  })
+
   it('unlocks stock-limited shop purchases through the merchant', () => {
     let state = join(createInitialGameState(), 'npc_merchant')
     state = purchaseShopItem(state, 'emergency_food')

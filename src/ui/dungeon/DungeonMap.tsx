@@ -16,7 +16,6 @@ import { previewResourceChange } from '../../engine/resources/resourceCapacity'
 import { GameIcon } from '../icons/GameIcon'
 import { RaceIcon } from '../population/RaceIcon'
 import { raceDefinitionById } from '../../content/races/races'
-import type { FeatureId } from '../../types/content'
 import { QuickAccess } from '../game/QuickAccess'
 
 interface DungeonMapProps {
@@ -31,7 +30,6 @@ interface DungeonMapProps {
   onRepair: (instanceId: string) => boolean
   onDemolish: (instanceId: string) => boolean
   onOpenAssignment: (instanceId: string) => void
-  onOpenNpcFeature: (featureId: FeatureId) => void
   onOpenNpcMenu: () => void
 }
 
@@ -72,7 +70,6 @@ export function DungeonMap({
   onRepair,
   onDemolish,
   onOpenAssignment,
-  onOpenNpcFeature,
   onOpenNpcMenu,
 }: DungeonMapProps) {
   const tiles = useMemo(
@@ -111,7 +108,7 @@ export function DungeonMap({
       <div className="panel-heading">
         <div><p className="eyebrow">FLOOR 01 · CENTRAL CAVERN</p><h2 id="dungeon-map-title">던전 지도</h2></div>
         <div className="panel-heading__actions">
-          <QuickAccess state={state} onOpenFeature={onOpenNpcFeature} onOpenAll={onOpenNpcMenu} />
+          <QuickAccess state={state} onOpenAll={onOpenNpcMenu} />
           {buildFacility && (
             <div className="build-mode-banner"><span>건설 모드 · {buildFacility.name}</span><button type="button" onClick={onCancelBuild}>ESC 취소</button></div>
           )}

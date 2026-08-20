@@ -1,9 +1,9 @@
 import type { TierDefinition } from '../../types/content'
 
 export const tierDefinitions: TierDefinition[] = [
-  { id: 'tier_1', level: 1, name: '폐던전', invasionChance: 0.06, requirements: [], promotionRewards: [] },
+  { id: 'tier_1', level: 1, name: '폐던전', invasionChance: 0.08, requirements: [], promotionRewards: [] },
   {
-    id: 'tier_2', level: 2, name: '소형 던전', invasionChance: 0.08,
+    id: 'tier_2', level: 2, name: '소형 던전', invasionChance: 0.11,
     requirements: [
       { type: 'roomCountAtLeast', amount: 6 },
       { type: 'populationAtLeast', amount: 8 },
@@ -16,7 +16,7 @@ export const tierDefinitions: TierDefinition[] = [
     ],
   },
   {
-    id: 'tier_3', level: 3, name: '중형 던전', invasionChance: 0.1,
+    id: 'tier_3', level: 3, name: '중형 던전', invasionChance: 0.14,
     requirements: [
       { type: 'roomCountAtLeast', amount: 12 },
       { type: 'populationAtLeast', amount: 15 },
@@ -31,7 +31,7 @@ export const tierDefinitions: TierDefinition[] = [
     ],
   },
   {
-    id: 'tier_4', level: 4, name: '대형 던전', invasionChance: 0.12,
+    id: 'tier_4', level: 4, name: '대형 던전', invasionChance: 0.17,
     requirements: [
       { type: 'roomCountAtLeast', amount: 20 },
       { type: 'populationAtLeast', amount: 30 },
@@ -47,7 +47,7 @@ export const tierDefinitions: TierDefinition[] = [
     ],
   },
   {
-    id: 'tier_5', level: 5, name: '거대 던전', invasionChance: 0.14,
+    id: 'tier_5', level: 5, name: '거대 던전', invasionChance: 0.2,
     requirements: [
       { type: 'roomCountAtLeast', amount: 30 },
       { type: 'populationAtLeast', amount: 50 },

@@ -112,9 +112,13 @@ export interface MaintenanceRuntimeState {
 
 export interface NpcRuntimeState {
   npcId: string
+  eligible: boolean
   discovered: boolean
   joined: boolean
-  unlockedAtDay?: number
+  eligibleSinceDay?: number
+  joinedAtDay?: number
+  lastVisitDay?: number
+  retryAfterDay?: number
 }
 
 export interface ActiveMercenary {

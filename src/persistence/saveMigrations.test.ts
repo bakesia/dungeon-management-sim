@@ -117,8 +117,18 @@ describe('migrateSaveData', () => {
     }
     const migrated = migrateSaveData(legacy)
     expect(migrated.invasion.fame).toBeGreaterThan(0)
-    expect(migrated.invasion.raidPressure).toBeCloseTo(0.14)
+    expect(migrated.invasion.raidPressure).toBeCloseTo(0.2)
     expect(migrated.tavern.recruitmentOffers).toHaveLength(3)
     expect(migrated.tavern.lastRecruitmentRefreshDay).toBe(1)
+  })
+
+  it('migrates v8 joined NPCs to persistent eligibility state', () => {
+    const current = createInitialGameState()
+    const migrated = migrateSaveData({
+      ...current,
+      saveVersion: 8,
+      npcs: { npc_merchant: { npcId: 'npc_merchant', discovered: true, joined: true, unlockedAtDay: 4 } },
+    })
+    expect(migrated.npcs.npc_merchant).toMatchObject({ eligible: true, joined: true, eligibleSinceDay: 4, joinedAtDay: 4 })
   })
 })

@@ -39,6 +39,7 @@ export type EffectDefinition =
   | { type: 'repairRoom'; instanceId: string }
   | { type: 'repairRandomRoom' }
   | { type: 'joinNpc'; npcId: NpcId }
+  | { type: 'scheduleNpcRetry'; npcId: NpcId; days: number }
   | { type: 'addTimedModifier'; modifierType: TimedModifierType; value: number; durationDays?: number; targetTag?: string; consumeOnInvasion?: boolean }
   | { type: 'revealInvasionIntel'; intelType: InvasionIntelType }
   | { type: 'changeFame'; amount: number }
@@ -66,10 +67,12 @@ export type ConditionDefinition =
   | { type: 'roomCountAtLeast'; amount: number }
   | { type: 'roomLevelCountAtLeast'; minLevel: number; amount: number }
   | { type: 'defenseWinsAtLeast'; amount: number }
+  | { type: 'fameAtLeast'; amount: number }
   | { type: 'tierAtLeast'; level: number }
   | { type: 'flagEquals'; flag: string; value: boolean }
   | { type: 'dayAtLeast'; day: number }
   | { type: 'npcJoined'; npcId: NpcId; value: boolean }
+  | { type: 'npcEligible'; npcId: NpcId; value: boolean }
 
 export interface ResourceDefinition {
   id: ResourceId
@@ -172,6 +175,10 @@ export interface NpcDefinition {
   displayName: string
   description: string
   unlockConditions: ConditionDefinition[]
+  precursorFlags: string[]
+  visitPityDays: number
+  retryCooldownDays: number
+  unlockHint: string
   joinEventId: EventId
   featureId: FeatureId
   visitorText: string

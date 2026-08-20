@@ -12,7 +12,7 @@ export const gameRules = {
     unpaidEfficiencyMultiplier: 0.75,
   },
   invasion: {
-    safeDaysAfterInvasion: 2,
+    safeDaysAfterInvasion: 1,
     fame: {
       chanceScale: 70,
       maximumChanceBonus: 0.24,
@@ -20,9 +20,9 @@ export const gameRules = {
       defeatLoss: 4,
     },
     pity: {
-      pressurePerEligibleDay: 0.035,
-      maximumPressureBonus: 0.21,
-      forceAfterDays: 8,
+      pressurePerEligibleDay: 0.05,
+      maximumPressureBonus: 0.25,
+      forceAfterDays: 6,
     },
     damage: {
       goldRatio: 0.4,
@@ -46,6 +46,7 @@ export const gameRules = {
   },
   npcs: {
     visitorChance: 0.35,
+    precursorVisitChanceBonus: 0.2,
     shopRefreshDays: 4,
     tavernRefreshDays: 5,
     recruitmentRefreshDays: 4,

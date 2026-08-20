@@ -5,6 +5,7 @@ import { facilityDefinitionById } from '../../content/facilities/facilities'
 import { defaultRandomSource } from '../random'
 import { previewResourceChange } from '../resources/resourceCapacity'
 import { resourceDefinitionById } from '../../content/resources/resources'
+import { updateNpcEligibility } from '../npcs/npcEligibility'
 
 function reconcileResidentAssignments(state: GameState, population: PopulationGroup[]): GameState['dungeon'] {
   const remaining = new Map(population.map((group) => [group.raceId, group.count]))
@@ -36,7 +37,27 @@ function createLogEntry(state: GameState, effect: Extract<EffectDefinition, { ty
   }
 }
 
+function insertPresentationLog(logs: GameLogEntry[], entry: GameLogEntry): GameLogEntry[] {
+  const priority = entry.presentationPriority
+  if (priority === undefined) return [...logs, entry]
+
+  const markerIndex = logs.findLastIndex(
+    (log) => log.day === entry.day && log.message === `DAY ${entry.day} 종료`,
+  )
+  let insertionIndex = markerIndex >= 0 ? markerIndex + 1 : logs.length
+  while (
+    insertionIndex < logs.length
+    && logs[insertionIndex]?.day === entry.day
+    && (logs[insertionIndex]?.presentationPriority ?? 0) >= priority
+  ) insertionIndex += 1
+
+  return [...logs.slice(0, insertionIndex), entry, ...logs.slice(insertionIndex)]
+}
+
 export function applyEffect(state: GameState, effect: EffectDefinition, now = new Date()): GameState {
+  // Capture a fulfilled NPC unlock before an action can spend the resource or
+  // otherwise remove the condition that made the NPC eligible.
+  state = updateNpcEligibility(state)
   const updatedAt = now.toISOString()
 
   if (effect.type === 'addResource') {
@@ -49,7 +70,7 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
       },
       metadata: { ...state.metadata, updatedAt },
     }
-    if (change.overflow <= 0) return nextState
+    if (change.overflow <= 0) return updateNpcEligibility(nextState)
 
     const resourceName = resourceDefinitionById[effect.resourceId]?.name ?? effect.resourceId
     return applyEffect(nextState, {
@@ -60,11 +81,11 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
   }
 
   if (effect.type === 'setFlag') {
-    return {
+    return updateNpcEligibility({
       ...state,
       flags: { ...state.flags, [effect.flag]: effect.value },
       metadata: { ...state.metadata, updatedAt },
-    }
+    })
   }
 
   if (effect.type === 'addPopulation') {
@@ -98,7 +119,7 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
         message: `숙소 수용 한계로 주민 ${effect.amount - addedAmount}명이 합류하지 못했습니다.`,
       }, now)
     }
-    return nextState
+    return updateNpcEligibility(nextState)
   }
 
   if (effect.type === 'offerPopulationJoin') {
@@ -181,15 +202,40 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
   }
 
   if (effect.type === 'joinNpc') {
+    const current = state.npcs[effect.npcId]
+    return {
+      ...state,
+      npcs: {
+        ...state.npcs,
+        [effect.npcId]: {
+          ...current,
+          npcId: effect.npcId,
+          eligible: true,
+          discovered: true,
+          joined: true,
+          eligibleSinceDay: current?.eligibleSinceDay ?? state.day,
+          joinedAtDay: state.day,
+          retryAfterDay: undefined,
+        },
+      },
+      metadata: { ...state.metadata, updatedAt },
+    }
+  }
+
+  if (effect.type === 'scheduleNpcRetry') {
+    const current = state.npcs[effect.npcId]
     return {
       ...state,
       npcs: {
         ...state.npcs,
         [effect.npcId]: {
           npcId: effect.npcId,
+          eligible: true,
           discovered: true,
-          joined: true,
-          unlockedAtDay: state.day,
+          joined: current?.joined ?? false,
+          eligibleSinceDay: current?.eligibleSinceDay ?? state.day,
+          lastVisitDay: current?.lastVisitDay ?? state.day,
+          retryAfterDay: state.day + Math.max(1, effect.days),
         },
       },
       metadata: { ...state.metadata, updatedAt },
@@ -224,16 +270,16 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
   }
 
   if (effect.type === 'changeFame') {
-    return {
+    return updateNpcEligibility({
       ...state,
       invasion: { ...state.invasion, fame: Math.max(0, state.invasion.fame + effect.amount) },
       metadata: { ...state.metadata, updatedAt },
-    }
+    })
   }
 
   return {
     ...state,
-    logs: [...state.logs, createLogEntry(state, effect)],
+    logs: insertPresentationLog(state.logs, createLogEntry(state, effect)),
     metadata: { ...state.metadata, updatedAt },
   }
 }

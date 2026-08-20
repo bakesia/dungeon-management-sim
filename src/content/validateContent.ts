@@ -67,7 +67,7 @@ export function validateContent(): void {
     if ((effect.type === 'addPopulation' || effect.type === 'offerPopulationJoin' || effect.type === 'removePopulation') && !raceIds.has(effect.raceId)) {
       errors.push(`Unknown raceId "${effect.raceId}" referenced by ${source}.`)
     }
-    if (effect.type === 'joinNpc' && !npcIds.has(effect.npcId)) errors.push(`Unknown npcId "${effect.npcId}" referenced by ${source}.`)
+    if ((effect.type === 'joinNpc' || effect.type === 'scheduleNpcRetry') && !npcIds.has(effect.npcId)) errors.push(`Unknown npcId "${effect.npcId}" referenced by ${source}.`)
     if (effect.type === 'setFlag' && effect.flag.trim().length === 0) errors.push(`Empty flag referenced by ${source}.`)
   }
 
@@ -87,7 +87,7 @@ export function validateContent(): void {
     if (condition.type === 'flagEquals' && !definedFlags.has(condition.flag)) {
       errors.push(`Unknown flag "${condition.flag}" referenced by ${source}.`)
     }
-    if (condition.type === 'npcJoined' && !npcIds.has(condition.npcId)) errors.push(`Unknown npcId "${condition.npcId}" referenced by ${source}.`)
+    if ((condition.type === 'npcJoined' || condition.type === 'npcEligible') && !npcIds.has(condition.npcId)) errors.push(`Unknown npcId "${condition.npcId}" referenced by ${source}.`)
   }
 
   initialPopulationGroups.forEach((group) => {
@@ -191,7 +191,13 @@ export function validateContent(): void {
     invader.rewards.forEach((effect) => validateEffect(effect, `invader "${invader.id}"`))
   })
 
-  npcDefinitions.forEach((npc) => npc.unlockConditions.forEach((condition) => validateCondition(condition, `npc "${npc.id}"`)))
+  npcDefinitions.forEach((npc) => {
+    npc.unlockConditions.forEach((condition) => validateCondition(condition, `npc "${npc.id}"`))
+    npc.precursorFlags.forEach((flag) => {
+      if (!definedFlags.has(flag)) errors.push(`Unknown precursor flag "${flag}" referenced by npc "${npc.id}".`)
+    })
+    if (npc.visitPityDays < 1 || npc.retryCooldownDays < 1) errors.push(`NPC "${npc.id}" has invalid visit timing.`)
+  })
   shopItemDefinitions.forEach((item) => { validateCost(item.cost, `shop item "${item.id}"`); item.effects.forEach((effect) => validateEffect(effect, `shop item "${item.id}"`)) })
   mercenaryDefinitions.forEach((item) => validateCost(item.cost, `mercenary "${item.id}"`))
   recruitmentOfferDefinitions.forEach((item) => {

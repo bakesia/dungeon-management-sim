@@ -21,10 +21,12 @@ export function checkCondition(state: GameState, condition: ConditionDefinition)
     return Object.values(state.dungeon.rooms).filter((room) => room.level >= condition.minLevel).length >= condition.amount
   }
   if (condition.type === 'defenseWinsAtLeast') return state.statistics.successfulDefenses >= condition.amount
+  if (condition.type === 'fameAtLeast') return state.invasion.fame >= condition.amount
   if (condition.type === 'tierAtLeast') return (tierDefinitionById[state.currentTierId]?.level ?? 0) >= condition.level
   if (condition.type === 'flagEquals') return (state.flags[condition.flag] ?? false) === condition.value
   if (condition.type === 'dayAtLeast') return state.day >= condition.day
   if (condition.type === 'npcJoined') return Boolean(state.npcs[condition.npcId]?.joined) === condition.value
+  if (condition.type === 'npcEligible') return Boolean(state.npcs[condition.npcId]?.eligible) === condition.value
   return false
 }
 

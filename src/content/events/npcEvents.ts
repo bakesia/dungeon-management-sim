@@ -59,7 +59,10 @@ function createJoinChoices(npcId: string): EventChoiceDefinition[] {
     {
       id: 'decline',
       text: '지금은 거절한다',
-      effects: [{ type: 'addLog', category: 'event' as const, message: `${npcDefinitionById[npcId]?.displayName ?? '방문자'}의 제안을 거절했습니다. 며칠 뒤 다시 찾아올 수 있습니다.` }],
+      effects: [
+        { type: 'scheduleNpcRetry', npcId, days: npcDefinitionById[npcId]?.retryCooldownDays ?? 5 },
+        { type: 'addLog', category: 'event' as const, message: `${npcDefinitionById[npcId]?.displayName ?? '방문자'}의 제안을 거절했습니다. 며칠 뒤 다시 찾아올 수 있습니다.` },
+      ],
     },
   ]
 }
@@ -68,10 +71,10 @@ export const npcEventDefinitions: EventDefinition[] = npcDefinitions.map((npc) =
   id: npc.joinEventId,
   title: '특별 방문자',
   text: npc.visitorText,
-  conditions: [...npc.unlockConditions, { type: 'npcJoined', npcId: npc.id, value: false }],
+  conditions: [{ type: 'npcEligible', npcId: npc.id, value: true }, { type: 'npcJoined', npcId: npc.id, value: false }],
   weight: 7,
   once: false,
-  cooldownDays: 8,
+  cooldownDays: 0,
   category: 'npc',
   tags: ['npc_join', 'chain', npc.role],
   choices: createJoinChoices(npc.id),

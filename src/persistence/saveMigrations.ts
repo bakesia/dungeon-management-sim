@@ -6,6 +6,7 @@ import { REMOVED_FACILITY_IDS } from '../content/facilities/facilities'
 import { tierDefinitionById } from '../content/tiers/tiers'
 import { invaderDefinitionById } from '../content/invaders/invaders'
 import { gameRules } from '../content/gameRules'
+import { npcDefinitions } from '../content/npcs/npcs'
 
 type UnknownRecord = Record<string, unknown>
 const isRecord = (value: unknown): value is UnknownRecord => typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -19,6 +20,29 @@ function normalizeFlags(value: unknown): Record<string, boolean> {
 function normalizeNumberRecord(value: unknown): Record<string, number> {
   if (!isRecord(value)) return {}
   return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, number] => typeof entry[1] === 'number'))
+}
+
+function normalizeNpcStates(value: unknown, day: number): GameState['npcs'] {
+  const rawNpcs = isRecord(value) ? value : {}
+  return Object.fromEntries(npcDefinitions.flatMap((definition) => {
+    const candidate = rawNpcs[definition.id]
+    const raw: UnknownRecord | null = isRecord(candidate) ? candidate : null
+    if (!raw) return []
+    const joined = raw.joined === true
+    const eligible = joined || raw.eligible === true || raw.discovered === true
+    if (!eligible) return []
+    const legacyUnlockedAtDay = typeof raw.unlockedAtDay === 'number' ? raw.unlockedAtDay : undefined
+    return [[definition.id, {
+      npcId: definition.id,
+      eligible: true,
+      discovered: true,
+      joined,
+      eligibleSinceDay: typeof raw.eligibleSinceDay === 'number' ? raw.eligibleSinceDay : legacyUnlockedAtDay ?? day,
+      joinedAtDay: typeof raw.joinedAtDay === 'number' ? raw.joinedAtDay : joined ? legacyUnlockedAtDay ?? day : undefined,
+      lastVisitDay: typeof raw.lastVisitDay === 'number' ? raw.lastVisitDay : undefined,
+      retryAfterDay: typeof raw.retryAfterDay === 'number' ? raw.retryAfterDay : undefined,
+    }]]
+  }))
 }
 
 function normalizeLogCategory(entry: UnknownRecord): GameLogCategory {
@@ -143,7 +167,7 @@ function removeDeprecatedFacilities(dungeon: GameState['dungeon']): GameState['d
 
 export function migrateSaveData(value: unknown): GameState {
   if (!isRecord(value) || typeof value.saveVersion !== 'number') throw new Error('Invalid save: missing numeric saveVersion.')
-  if (![1, 2, 3, 4, 5, 6, 7, SAVE_VERSION].includes(value.saveVersion)) throw new Error(`Unsupported saveVersion ${value.saveVersion}; expected 1 through ${SAVE_VERSION}.`)
+  if (![1, 2, 3, 4, 5, 6, 7, 8, SAVE_VERSION].includes(value.saveVersion)) throw new Error(`Unsupported saveVersion ${value.saveVersion}; expected 1 through ${SAVE_VERSION}.`)
   if (typeof value.day !== 'number' || !Array.isArray(value.population) || !isRecord(value.dungeon)) throw new Error('Invalid save: day, population, or dungeon state is malformed.')
   const fallback = createInitialGameState()
   const population = normalizePopulation(value.population)
@@ -228,7 +252,7 @@ export function migrateSaveData(value: unknown): GameState {
       shortfall: typeof maintenance.shortfall === 'number' ? maintenance.shortfall : 0,
       efficiencyMultiplier: typeof maintenance.efficiencyMultiplier === 'number' ? maintenance.efficiencyMultiplier : 1,
     },
-    npcs: isRecord(value.npcs) ? value.npcs as unknown as GameState['npcs'] : {},
+    npcs: normalizeNpcStates(value.npcs, value.day),
     shop: isRecord(value.shop) && Array.isArray(value.shop.offerings) ? value.shop as unknown as GameState['shop'] : fallback.shop,
     tavern: isRecord(value.tavern) && Array.isArray(value.tavern.offers) ? {
       lastRefreshDay: typeof value.tavern.lastRefreshDay === 'number' ? value.tavern.lastRefreshDay : value.day,

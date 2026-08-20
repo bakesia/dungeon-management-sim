@@ -22,7 +22,7 @@ describe('DexieSaveRepository', () => {
     game.core.hp = 64
     game.invasion = { daysSinceLastInvasion: 1, totalDefenses: 4, totalWins: 3, totalLosses: 1, lastEncounter: null, fame: 44, raidPressure: 0.07, intel: { powerRange: true, invaderCategory: false, arrivalEstimate: false }, pendingResolution: null }
     game.statistics.successfulDefenses = 3
-    game.npcs.npc_merchant = { npcId: 'npc_merchant', discovered: true, joined: true, unlockedAtDay: 2 }
+    game.npcs.npc_merchant = { npcId: 'npc_merchant', eligible: true, discovered: true, joined: true, eligibleSinceDay: 2, joinedAtDay: 2 }
     game.shop.offerings = [{ itemId: 'emergency_food', stock: 1 }]
     game.activeMercenaries = [{ contractId: 'orc_mercenaries', hiredAtDay: 2, expiresOnDay: 6, combatPower: 25 }]
     game.timedModifiers = [{ id: 'saved-buff', type: 'flatDefense', value: 25, consumeOnInvasion: true }]
@@ -55,6 +55,7 @@ describe('DexieSaveRepository', () => {
     expect(loadedGame?.invasion).toMatchObject({ totalDefenses: 4, totalWins: 3, totalLosses: 1 })
     expect(loadedGame?.statistics.successfulDefenses).toBe(3)
     expect(loadedGame?.npcs.npc_merchant?.joined).toBe(true)
+    expect(loadedGame?.npcs.npc_merchant?.eligible).toBe(true)
     expect(loadedGame?.shop.offerings).toEqual([{ itemId: 'emergency_food', stock: 1 }])
     expect(loadedGame?.activeMercenaries[0]?.combatPower).toBe(25)
     expect(loadedGame?.timedModifiers[0]?.value).toBe(25)

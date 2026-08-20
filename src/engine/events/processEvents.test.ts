@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { checkConditions } from '../conditions/checkConditions'
 import { createInitialGameState } from '../game/createInitialGameState'
-import { chooseEvent, getEligibleEvents, getEventWeight, processEventRoll, processNpcVisitRoll } from './processEvents'
+import { canChooseEventChoice, chooseEvent, getEligibleEvents, getEligibleNpcVisitEvents, getEventWeight, processEventRoll, processNpcVisitRoll } from './processEvents'
 import { eventDefinitionById } from '../../content/events/events'
 import { processInvasionRoll } from '../invasion/processInvasion'
+import { processNpcRuntime } from '../npcs/npcServices'
+import { updateNpcEligibility } from '../npcs/npcEligibility'
+import { applyEffect } from '../effects/applyEffects'
 
 describe('event engine', () => {
   it('supports the v0.1 condition set', () => {
@@ -47,7 +50,7 @@ describe('event engine', () => {
     state.day = 8
     state.currentTierId = 'tier_2'
     state.events.daysSinceDailyEvent = 1
-    const visited = processNpcVisitRoll(state, { next: () => 0 })
+    const visited = processNpcVisitRoll(processNpcRuntime(state, { next: () => 0 }), { next: () => 0 })
     expect(visited.events.currentEventId).toBe('event_npc_merchant_join')
     expect(visited.events.daysSinceDailyEvent).toBe(1)
 
@@ -64,7 +67,7 @@ describe('event engine', () => {
     state.day = 8
     state.currentTierId = 'tier_2'
     state.events.currentEventId = 'event_fungus_colony'
-    const visited = processNpcVisitRoll(state, { next: () => 0 })
+    const visited = processNpcVisitRoll(processNpcRuntime(state, { next: () => 0 }), { next: () => 0 })
     expect(visited.events.currentEventId).toBe('event_npc_merchant_join')
     expect(visited.events.pendingEventIds).toEqual(['event_fungus_colony'])
   })
@@ -121,19 +124,12 @@ describe('event engine', () => {
     expect(checkConditions(state, merchant.choices.find((choice) => choice.id === 'surcharge')?.conditions)).toBe(true)
     expect(checkConditions(state, merchant.choices.find((choice) => choice.id === 'standard')?.conditions)).toBe(false)
 
-    const visited = processNpcVisitRoll(state, { next: () => 0 })
+    const visited = processNpcVisitRoll(processNpcRuntime(state, { next: () => 0 }), { next: () => 0 })
     const declined = chooseEvent(visited, 'decline')
-    declined.events.history.push(
-      { eventId: 'event_fungus_colony', day: 9 },
-      { eventId: 'event_material_loss', day: 10 },
-      { eventId: 'event_small_collapse', day: 11 },
-      { eventId: 'event_mana_anomaly', day: 12 },
-      { eventId: 'event_pantry_rats', day: 13 },
-    )
-    declined.day = 15
-    expect(getEligibleEvents(declined).some((event) => event.id === merchant.id)).toBe(false)
-    declined.day = 16
-    expect(getEligibleEvents(declined).some((event) => event.id === merchant.id)).toBe(true)
+    declined.day = 12
+    expect(getEligibleNpcVisitEvents(declined).some((event) => event.id === merchant.id)).toBe(false)
+    declined.day = 13
+    expect(getEligibleNpcVisitEvents(declined).some((event) => event.id === merchant.id)).toBe(true)
   })
 
   it('unlocks a follow-up event through a data-defined flag', () => {
@@ -189,5 +185,69 @@ describe('event engine', () => {
     const state = createInitialGameState(); state.day = 20
     state.events.completedEventIds = ['event_small_ore_vein']
     expect(getEligibleEvents(state).map((event) => event.id)).not.toContain('event_small_ore_vein')
+  })
+
+  it('persists NPC eligibility after a threshold is reached', () => {
+    const state = createInitialGameState()
+    state.day = 3
+    const eligible = updateNpcEligibility(state)
+    expect(eligible.npcs.npc_merchant).toMatchObject({ eligible: true, eligibleSinceDay: 3 })
+    eligible.resources.gold = 0
+    expect(updateNpcEligibility(eligible).npcs.npc_merchant?.eligible).toBe(true)
+  })
+
+  it('captures NPC eligibility before spending a fulfilled resource threshold', () => {
+    const state = createInitialGameState()
+    state.day = 3
+    const spent = applyEffect(state, { type: 'addResource', resourceId: 'gold', amount: -90 })
+    expect(spent.resources.gold).toBe(10)
+    expect(spent.npcs.npc_merchant).toMatchObject({ eligible: true, eligibleSinceDay: 3 })
+  })
+
+  it('never offers a join event again after the NPC joins', () => {
+    const state = createInitialGameState()
+    state.day = 3
+    const eligible = updateNpcEligibility(state)
+    eligible.events.currentEventId = 'event_npc_merchant_join'
+    const joined = chooseEvent(eligible, 'standard')
+    joined.day = 30
+    expect(joined.npcs.npc_merchant?.joined).toBe(true)
+    expect(getEligibleNpcVisitEvents(joined).map((event) => event.id)).not.toContain('event_npc_merchant_join')
+  })
+
+  it('uses the shared choice predicate for both Tavern price paths', () => {
+    const state = createInitialGameState()
+    state.currentTierId = 'tier_2'
+    state.day = 8
+    const tavern = eventDefinitionById.event_npc_tavern_join!
+    const standard = tavern.choices.find((choice) => choice.id === 'standard')!
+    const discount = tavern.choices.find((choice) => choice.id === 'discount')!
+    expect(canChooseEventChoice(state, standard)).toBe(true)
+    expect(canChooseEventChoice(state, discount)).toBe(false)
+    state.flags.mercenaries_welcomed = true
+    expect(canChooseEventChoice(state, standard)).toBe(false)
+    expect(canChooseEventChoice(state, discount)).toBe(true)
+  })
+
+  it('marks multiple NPCs eligible but presents at most one visit per DAY', () => {
+    const state = createInitialGameState()
+    state.currentTierId = 'tier_2'
+    state.day = 8
+    const eligible = updateNpcEligibility(state)
+    expect(Object.values(eligible.npcs).filter((npc) => npc.eligible && !npc.joined).length).toBeGreaterThanOrEqual(2)
+    const visited = processNpcVisitRoll(eligible, { next: () => 0 })
+    expect(visited.events.history.filter((entry) => entry.day === 8 && entry.eventId.startsWith('event_npc_')).length).toBe(1)
+    expect(getEligibleNpcVisitEvents(visited).length).toBeGreaterThanOrEqual(1)
+    const rolledAgain = processNpcVisitRoll(visited, { next: () => 0 })
+    expect(rolledAgain.events.history.filter((entry) => entry.day === 8 && entry.eventId.startsWith('event_npc_')).length).toBe(1)
+  })
+
+  it('does not increase 악명 when quietly treating the fallen traveler', () => {
+    const state = createInitialGameState()
+    state.resources.food = 20
+    state.events.currentEventId = 'event_wounded_traveler'
+    const treated = chooseEvent(state, 'treat')
+    expect(treated.invasion.fame).toBe(0)
+    expect(treated.logs.some((entry) => entry.message.includes('악명 +'))).toBe(false)
   })
 })

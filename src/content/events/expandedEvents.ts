@@ -223,7 +223,7 @@ export const expandedEventDefinitions: EventDefinition[] = [
     choices: [
       { id: 'prepare', text: '방어 물자를 미리 배치한다', conditions: [{ type: 'resourceAtLeast', resourceId: 'material', amount: 6 }], effects: [{ type: 'addResource', resourceId: 'material', amount: -6 }, { type: 'addLog', category: 'invasion', message: '감시 신호에 따라 방어 물자를 배치했습니다. [자재 -6]' }] },
       { id: 'trade', text: '행렬에 은밀히 접근해 거래한다', conditions: [{ type: 'resourceAtLeast', resourceId: 'gold', amount: 10 }], effects: [{ type: 'addResource', resourceId: 'gold', amount: -10 }, { type: 'addResource', resourceId: 'food', amount: 18 }, { type: 'addLog', category: 'resource', message: '여행자들과 식량을 거래했습니다. [골드 -10, 식량 +18]' }] },
-      { id: 'observe', text: '경계를 강화하고 행렬을 보낸다', effects: [{ type: 'changeFame', amount: -1 }, { type: 'addLog', category: 'invasion', message: '경비대가 입구를 숨겨 던전의 소문을 잠재웠습니다. [명성 -1]' }] },
+      { id: 'observe', text: '경계를 강화하고 행렬을 보낸다', effects: [{ type: 'changeFame', amount: -1 }, { type: 'addLog', category: 'invasion', message: '경비대가 입구를 숨겨 던전의 소문을 잠재웠습니다. [악명 -1]' }] },
     ],
   },
 ]

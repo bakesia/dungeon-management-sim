@@ -31,7 +31,7 @@ export function GameHeader({ state, onOpenMenu }: GameHeaderProps) {
               key={resource.id}
               title={`${resource.name} 저장량${isOverCapacity ? ' · 저장 한도 초과: 추가 획득 불가' : ''}`}
             >
-              <GameIcon iconId={resource.iconId} label={resource.name} size={20} />
+              <GameIcon iconId={resource.iconId} label={resource.name} size={24} />
               <span className="resource-item__label">{resource.shortName}</span>
               <strong>{state.resources[resource.id] ?? 0}<small>/ {getResourceCapacity(state, resource.id)}</small></strong>
               {isOverCapacity && <span className="resource-item__capacity-state">OVER</span>}
@@ -39,14 +39,14 @@ export function GameHeader({ state, onOpenMenu }: GameHeaderProps) {
           )
         })}
         <div className="resource-item">
-          <GameIcon iconId="hud_population" label="인구" size={20} />
+          <GameIcon iconId="hud_population" label="인구" size={24} />
           <span className="resource-item__label">POP</span>
           <strong>{population}/{populationCapacity}</strong>
         </div>
-        <div className="resource-item resource-item--fame" title="던전의 명성입니다. 명성이 높을수록 더 강한 침입자와 큰 보상이 등장합니다.">
-          <GameIcon iconId="hud_fame" label="명성" size={20} />
-          <span className="resource-item__label">명성</span>
-          <strong><small>{getFameLevel(state.invasion.fame)}</small>{state.invasion.fame}</strong>
+        <div className="resource-item resource-item--fame" title="외부 세계가 이 던전을 위험하고 공략 가치 있는 대상으로 인식하는 정도입니다.">
+          <GameIcon iconId="hud_fame" label="악명" size={24} />
+          <span className="resource-item__label">악명</span>
+          <strong>{state.invasion.fame}<small>· {getFameLevel(state.invasion.fame)}</small></strong>
         </div>
       </div>
       <button className="menu-button" type="button" onClick={onOpenMenu} aria-label="메뉴 열기">

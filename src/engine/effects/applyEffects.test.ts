@@ -58,4 +58,20 @@ describe('applyEffects', () => {
     expect(next.population.reduce((total, group) => total + group.count, 0)).toBe(10)
     expect(next.logs.at(-1)?.message).toContain('3명이 합류하지 못했습니다')
   })
+
+  it('orders major same-DAY presentations before routine logs', () => {
+    const state = createInitialGameState()
+    const next = applyEffects(state, [
+      { type: 'addLog', message: 'DAY 1 종료', category: 'system' },
+      { type: 'addLog', message: '생산 완료', category: 'resource' },
+      { type: 'addLog', message: '일반 사건', category: 'event', presentationPriority: 80 },
+      { type: 'addLog', message: '특별 방문자', category: 'event', presentationPriority: 90 },
+    ])
+    expect(next.logs.map((entry) => entry.message).slice(-4)).toEqual([
+      'DAY 1 종료',
+      '특별 방문자',
+      '일반 사건',
+      '생산 완료',
+    ])
+  })
 })

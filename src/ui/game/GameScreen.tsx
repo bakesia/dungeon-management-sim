@@ -189,7 +189,6 @@ export function GameScreen() {
           onRepair={repairFacility}
           onDemolish={demolishFacility}
           onOpenAssignment={setAssignmentRoomId}
-          onOpenNpcFeature={(featureId) => openMenu('npcs', featureId)}
           onOpenNpcMenu={() => openMenu('npcs')}
         />
         <GameLog

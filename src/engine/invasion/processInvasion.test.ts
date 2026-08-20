@@ -54,24 +54,20 @@ describe('invasion engine', () => {
     expect(damagedRooms[0]?.definitionId).toBe('mine')
   })
 
-  it('provides two complete safe days after an invasion', () => {
+  it('provides one complete safe day after an invasion', () => {
     let state = createInitialGameState()
     state.invasion = { ...state.invasion, daysSinceLastInvasion: 0, totalDefenses: 1, totalLosses: 1, fame: 40 }
 
     state = processInvasionRoll(state, { next: () => 0 })
     expect(state.invasion.daysSinceLastInvasion).toBe(1)
     expect(state.invasion.fame).toBe(40)
-    state = processInvasionRoll(state, { next: () => 0 })
-    expect(state.invasion.daysSinceLastInvasion).toBe(2)
-    expect(state.invasion.pendingResolution).toBeNull()
-
     state = processInvasionRoll(state, sequenceRandom([0, 0, 0]))
     expect(state.invasion.pendingResolution).not.toBeNull()
   })
 
   it('forces an invasion after the hidden pity limit without changing fame', () => {
     const state = createInitialGameState()
-    state.invasion.daysSinceLastInvasion = 8
+    state.invasion.daysSinceLastInvasion = 6
     const next = processInvasionRoll(state, sequenceRandom([0.99, 0, 0]))
     expect(next.invasion.pendingResolution).not.toBeNull()
     expect(next.invasion.fame).toBe(0)

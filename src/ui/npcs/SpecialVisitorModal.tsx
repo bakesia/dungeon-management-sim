@@ -1,4 +1,4 @@
-import { checkConditions } from '../../engine/conditions/checkConditions'
+import { canChooseEventChoice, shouldShowEventChoice } from '../../engine/events/processEvents'
 import type { EventDefinition } from '../../types/content'
 import type { GameState } from '../../types/game'
 import { npcDefinitions } from '../../content/npcs/npcs'
@@ -19,11 +19,11 @@ export function SpecialVisitorModal({ state, event, onChoose }: SpecialVisitorMo
       <strong className="visitor-name">{visitor?.displayName ?? '이름 없는 방문자'}</strong>
       <p className="decision-copy">{event.text}</p>
       <div className="decision-actions">
-        {event.choices.map((choice) => <button
+        {event.choices.filter((choice) => shouldShowEventChoice(state, choice)).map((choice) => <button
           className={choice.id === 'decline' ? 'secondary-button' : 'primary-button'}
           type="button"
           key={choice.id}
-          disabled={!checkConditions(state, choice.conditions)}
+          disabled={!canChooseEventChoice(state, choice)}
           onClick={() => onChoose(choice.id)}
         >{choice.text}</button>)}
       </div>
