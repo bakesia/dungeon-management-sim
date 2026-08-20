@@ -6,10 +6,10 @@ interface QuickAccessProps {
   state: GameState
   onOpenInventory: () => void
   onOpenStatistics: () => void
-  onOpenManagement: () => void
+  onOpenNpcManagement: () => void
 }
 
-export function QuickAccess({ state, onOpenInventory, onOpenStatistics, onOpenManagement }: QuickAccessProps) {
+export function QuickAccess({ state, onOpenInventory, onOpenStatistics, onOpenNpcManagement }: QuickAccessProps) {
   const maintenance = getTotalGoldMaintenance(state)
   const defense = calculateDungeonDefense(state)
 
@@ -24,7 +24,7 @@ export function QuickAccess({ state, onOpenInventory, onOpenStatistics, onOpenMa
       </div>
       <button className="quick-access__manage" type="button" onClick={onOpenInventory}>인벤토리</button>
       <button className="quick-access__manage" type="button" onClick={onOpenStatistics}>통계</button>
-      <button className="quick-access__manage" type="button" onClick={onOpenManagement}>던전 관리</button>
+      <button className="quick-access__manage" type="button" onClick={onOpenNpcManagement}>NPC 관리</button>
     </div>
   )
 }

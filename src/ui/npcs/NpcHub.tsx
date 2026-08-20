@@ -14,6 +14,7 @@ import type { GameState } from '../../types/game'
 import { RaceIcon } from '../population/RaceIcon'
 import { itemDefinitionById } from '../../content/items/items'
 import { gameRules } from '../../content/gameRules'
+import { compareRoomsForDisplay, getRoomDisplayName } from '../facilities/roomDisplay'
 
 interface NpcHubProps {
   state: GameState
@@ -41,7 +42,9 @@ export function NpcHub({ state, onPurchase, onSell, onHire, onRecruit, onService
   const raidProximity = getRaidProximity(state)
   const population = getPopulationTotal(state)
   const populationCapacity = getPopulationCapacity(state)
-  const damagedRooms = Object.values(state.dungeon.rooms).filter((room) => room.condition === 'damaged' && facilityDefinitionById[room.definitionId]?.buildable)
+  const damagedRooms = Object.values(state.dungeon.rooms)
+    .filter((room) => room.condition === 'damaged' && facilityDefinitionById[room.definitionId]?.buildable)
+    .sort(compareRoomsForDisplay)
   const getCapacityStatus = (itemId: string) => {
     const item = shopItemDefinitionById[itemId]
     const previews = item?.effects.flatMap((effect) => effect.type === 'addResource' && effect.amount > 0 ? [previewResourceChange(state, effect.resourceId, effect.amount)] : []) ?? []
@@ -103,7 +106,7 @@ export function NpcHub({ state, onPurchase, onSell, onHire, onRecruit, onService
           </div>}
       </>}
 
-      {feature === 'blacksmith' && <div className="service-list">{damagedRooms.length === 0 ? <p>현재 손상된 시설이 없습니다.</p> : damagedRooms.map((room) => <button key={room.instanceId} type="button" onClick={() => onRepair(room.instanceId)}><span><strong>{facilityDefinitionById[room.definitionId]?.name ?? room.definitionId}</strong><small>일반 수리보다 15% 저렴합니다.</small></span><em>수리</em></button>)}{npcServiceDefinitions.filter((service) => service.featureId === feature).map((service) => <button key={service.id} type="button" disabled={!canAfford(state, service.cost)} onClick={() => onService(service.id)}><span><strong>{service.name}</strong><small>{service.description}</small></span><em>{formatResourceCost(service.cost)}</em></button>)}</div>}
+      {feature === 'blacksmith' && <div className="service-list">{damagedRooms.length === 0 ? <p>현재 손상된 시설이 없습니다.</p> : damagedRooms.map((room) => <button key={room.instanceId} type="button" onClick={() => onRepair(room.instanceId)}><span><strong>{getRoomDisplayName(state, room)}</strong><small>일반 수리보다 15% 저렴합니다.</small></span><em>수리</em></button>)}{npcServiceDefinitions.filter((service) => service.featureId === feature).map((service) => <button key={service.id} type="button" disabled={!canAfford(state, service.cost)} onClick={() => onService(service.id)}><span><strong>{service.name}</strong><small>{service.description}</small></span><em>{formatResourceCost(service.cost)}</em></button>)}</div>}
       {(feature === 'mage' || feature === 'healer') && <div className="service-list">{npcServiceDefinitions.filter((service) => service.featureId === feature).map((service) => <button key={service.id} type="button" disabled={!canAfford(state, service.cost)} onClick={() => onService(service.id)}><span><strong>{service.name}</strong><small>{service.description}</small></span><em>{formatResourceCost(service.cost)}</em></button>)}</div>}
       {feature === 'informant' && <><div className="invasion-intel"><p><span>던전 악명</span><strong>{state.invasion.fame} · {getFameLevel(state.invasion.fame)}</strong></p><p><span>무료 동향</span><strong>{raidProximity.label} · {eligibleInvaders.some((item) => item.tags.includes('elite')) ? '정예 가능' : eligibleInvaders.some((item) => item.tags.includes('party')) ? '파티 가능' : '단독 침입자'}</strong></p><p><span>현재 공략 가능성</span><strong>{Math.round(getFameInvasionChance(state) * 100)}%</strong></p>{state.invasion.intel.powerRange && eligibleInvaders.length > 0 && <p><span>예상 전투력</span><strong>{Math.min(...eligibleInvaders.map((item) => item.powerRange.min))}–{Math.max(...eligibleInvaders.map((item) => item.powerRange.max))}</strong></p>}{state.invasion.intel.invaderCategory && <p><span>좁혀진 후보</span><strong>{eligibleInvaders.map((item) => item.name).join(', ')}</strong></p>}{state.invasion.intel.arrivalEstimate && <p><span>공략대 근접도</span><strong>{raidProximity.label} · 최대 {raidProximity.maximumDays} DAY</strong></p>}</div><div className="service-list">{npcServiceDefinitions.filter((service) => service.featureId === feature).map((service) => { const intelKey = service.id === 'intel_power' ? 'powerRange' : service.id === 'intel_category' ? 'invaderCategory' : service.id === 'intel_arrival' ? 'arrivalEstimate' : null; return <button key={service.id} type="button" disabled={!canAfford(state, service.cost) || (intelKey ? state.invasion.intel[intelKey] : false)} onClick={() => onService(service.id)}><span><strong>{service.name}</strong><small>{service.description}</small></span><em>{formatResourceCost(service.cost)}</em></button> })}</div></>}
     </section>}

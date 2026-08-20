@@ -38,10 +38,17 @@ describe('facility construction', () => {
     expect(canBuildFacility(state, 'trap_room', tileId(0, -1)).allowed).toBe(true)
   })
 
-  it('uses the final v0.1.13 facility tier roles', () => {
-    expect(['quarters', 'mine', 'fungus_farm', 'warehouse'].map((id) => facilityDefinitionById[id]?.requiredTier)).toEqual([1, 1, 1, 1])
-    expect(['guard_post', 'mana_chamber', 'trap_room', 'mana_reservoir'].map((id) => facilityDefinitionById[id]?.requiredTier)).toEqual([2, 2, 2, 2])
+  it('uses the final v0.1.14 facility tier roles', () => {
+    expect(['quarters', 'mine', 'fungus_farm', 'warehouse', 'guard_post'].map((id) => facilityDefinitionById[id]?.requiredTier)).toEqual([1, 1, 1, 1, 1])
+    expect(['mana_chamber', 'trap_room', 'mana_reservoir'].map((id) => facilityDefinitionById[id]?.requiredTier)).toEqual([2, 2, 2])
     expect(['reinforced_gate', 'infirmary'].map((id) => facilityDefinitionById[id]?.requiredTier)).toEqual([3, 3])
+  })
+
+  it('keeps Guard Room defense values while making it available at Tier 1', () => {
+    const guardPost = facilityDefinitionById.guard_post!
+    expect(guardPost.levels.map((level) => level.defense)).toEqual([3, 5, 7])
+    expect(guardPost.levels.map((level) => level.modifiers?.find((modifier) => modifier.type === 'combatContributionMultiplier')?.value)).toEqual([1.25, 1.4, 1.55])
+    expect(canBuildFacility(createInitialGameState(), 'guard_post', tileId(0, -1)).allowed).toBe(true)
   })
 
   it('refunds 75 percent of build and every paid upgrade cost at level 3', () => {

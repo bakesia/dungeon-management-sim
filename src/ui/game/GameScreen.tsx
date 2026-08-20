@@ -21,6 +21,7 @@ import { tierDefinitionById } from '../../content/tiers/tiers'
 import { getNewlyUnlockedFacilityNames, getNextTier } from '../../engine/day/processProgression'
 import { resourceDefinitionById } from '../../content/resources/resources'
 import { TierPromotionOverlay } from '../progression/TierPromotionOverlay'
+import { headerMenuView, quickAccessNpcMenuView } from './menuNavigation'
 
 interface TierCelebration {
   fromName: string
@@ -216,7 +217,7 @@ export function GameScreen() {
 
   return (
     <main className="game-shell">
-      <GameHeader state={state} onOpenMenu={() => openMenu()} />
+      <GameHeader state={state} onOpenMenu={() => openMenu(headerMenuView)} />
       <div className="game-layout">
         <DungeonMap
           state={state}
@@ -232,7 +233,7 @@ export function GameScreen() {
           onOpenAssignment={setAssignmentRoomId}
           onOpenInventory={() => openMenu('inventory')}
           onOpenStatistics={() => openMenu('statistics')}
-          onOpenManagement={() => openMenu('main')}
+          onOpenNpcManagement={() => openMenu(quickAccessNpcMenuView)}
         />
         <GameLog
           state={state}

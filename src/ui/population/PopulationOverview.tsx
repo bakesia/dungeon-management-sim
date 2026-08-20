@@ -1,11 +1,11 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
-import { facilityDefinitionById } from '../../content/facilities/facilities'
 import { raceDefinitions } from '../../content/races/races'
 import { getAssignedResidents, getAssignedResidentsByRace } from '../../engine/population/assignWorkers'
 import { getIdlePopulation, getPopulationByRace, getPopulationCapacity, getPopulationTotal } from '../../engine/population/populationMetrics'
 import type { GameState } from '../../types/game'
 import { RaceIcon } from './RaceIcon'
+import { compareRoomsForDisplay, getRoomDisplayName } from '../facilities/roomDisplay'
 
 function formatTraits(race: (typeof raceDefinitions)[number]): string[] {
   return [...race.modifiers.map((modifier) => {
@@ -32,6 +32,7 @@ export function PopulationOverview({ state }: { state: GameState }) {
           const count = room.residentAssignments.find((assignment) => assignment.raceId === race.id)?.count ?? 0
           return count > 0 ? [{ room, count }] : []
         })
+        placements.sort((first, second) => compareRoomsForDisplay(first.room, second.room))
         return <section key={race.id}>
           <button className="population-tree__row" type="button" onClick={() => setExpandedId(expanded ? null : race.id)} aria-expanded={expanded}>
             <span>{expanded ? <ChevronDown /> : <ChevronRight />}<RaceIcon iconId={race.iconId} name={race.name} /><b>{race.name}</b></span>
@@ -39,7 +40,7 @@ export function PopulationOverview({ state }: { state: GameState }) {
           </button>
           {expanded && <div className="population-tree__details">
             <p className="race-traits">{formatTraits(race).join(' · ')}</p>
-            {placements.map(({ room, count }) => <p key={room.instanceId}><span>{facilityDefinitionById[room.definitionId]?.name ?? room.definitionId}</span><strong>{count}명</strong></p>)}
+            {placements.map(({ room, count }) => <p key={room.instanceId}><span>{getRoomDisplayName(state, room)}</span><strong>{count}명</strong></p>)}
             <p><span>대기</span><strong>{Math.max(0, getPopulationByRace(state, race.id) - getAssignedResidentsByRace(state, race.id))}명</strong></p>
           </div>}
         </section>

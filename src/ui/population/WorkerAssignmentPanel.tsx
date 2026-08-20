@@ -8,6 +8,7 @@ import { calculateFacilityProductionMultiplier, canAdjustResidentAssignment, get
 import type { GameState } from '../../types/game'
 import { RaceIcon } from './RaceIcon'
 import { calculateDungeonDefenseBreakdown } from '../../engine/invasion/calculateDungeonDefense'
+import { getRoomDisplayName } from '../facilities/roomDisplay'
 
 interface WorkerAssignmentPanelProps {
   state: GameState
@@ -39,7 +40,7 @@ export function WorkerAssignmentPanel({ state, roomId, onAdjust, onClose }: Work
 
   return <div className="assignment-overlay" role="presentation" onMouseDown={onClose}>
     <section className="assignment-panel" role="dialog" aria-modal="true" aria-labelledby="assignment-title" onMouseDown={(event) => event.stopPropagation()}>
-      <header><div><p className="eyebrow">RESIDENT ASSIGNMENT</p><h2 id="assignment-title">{definition.name} · Lv.{room.level}</h2></div><button className="close-button" type="button" onClick={onClose} aria-label="인원 배치 닫기" autoFocus><X className="size-4" /></button></header>
+      <header><div><p className="eyebrow">RESIDENT ASSIGNMENT</p><h2 id="assignment-title">{getRoomDisplayName(state, room)} · Lv.{room.level}</h2></div><button className="close-button" type="button" onClick={onClose} aria-label="인원 배치 닫기" autoFocus><X className="size-4" /></button></header>
       <div className="assignment-job">
         <p><strong>필요 인원</strong><span>{getRoomAssignmentCount(room)} / {level.staffSlots ?? 0}</span></p>
         <div className="assignment-races">

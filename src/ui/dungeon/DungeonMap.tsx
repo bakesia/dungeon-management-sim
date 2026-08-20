@@ -17,6 +17,7 @@ import { GameIcon } from '../icons/GameIcon'
 import { RaceIcon } from '../population/RaceIcon'
 import { raceDefinitionById } from '../../content/races/races'
 import { QuickAccess } from '../game/QuickAccess'
+import { getRoomDisplayName } from '../facilities/roomDisplay'
 
 interface DungeonMapProps {
   state: GameState
@@ -32,7 +33,7 @@ interface DungeonMapProps {
   onOpenAssignment: (instanceId: string) => void
   onOpenInventory: () => void
   onOpenStatistics: () => void
-  onOpenManagement: () => void
+  onOpenNpcManagement: () => void
 }
 
 const statusNames: Record<DungeonTile['status'], string> = {
@@ -74,7 +75,7 @@ export function DungeonMap({
   onOpenAssignment,
   onOpenInventory,
   onOpenStatistics,
-  onOpenManagement,
+  onOpenNpcManagement,
 }: DungeonMapProps) {
   const tiles = useMemo(
     () => Object.values(state.dungeon.tiles).sort((a, b) => a.coordinate.y - b.coordinate.y || a.coordinate.x - b.coordinate.x),
@@ -112,7 +113,7 @@ export function DungeonMap({
       <div className="panel-heading">
         <div><p className="eyebrow">FLOOR 01 · CENTRAL CAVERN</p><h2 id="dungeon-map-title">던전 지도</h2></div>
         <div className="panel-heading__actions">
-          <QuickAccess state={state} onOpenInventory={onOpenInventory} onOpenStatistics={onOpenStatistics} onOpenManagement={onOpenManagement} />
+          <QuickAccess state={state} onOpenInventory={onOpenInventory} onOpenStatistics={onOpenStatistics} onOpenNpcManagement={onOpenNpcManagement} />
           {buildFacility && (
             <div className="build-mode-banner"><span>건설 모드 · {buildFacility.name}</span><button type="button" onClick={onCancelBuild}>ESC 취소</button></div>
           )}
@@ -125,6 +126,7 @@ export function DungeonMap({
             const isSelected = selectedTile && tile.id === selectedTile.id
             const room = getRoom(state, tile)
             const facility = room ? facilityDefinitionById[room.definitionId] : undefined
+            const facilityName = room ? getRoomDisplayName(state, room) : undefined
             const isBuildTarget = Boolean(buildModeFacilityId && tile.status === 'empty')
             return (
               <button
@@ -133,8 +135,8 @@ export function DungeonMap({
                 key={tile.id}
                 onClick={() => selectTile(tile)}
                 aria-pressed={isSelected}
-                aria-label={`${tile.coordinate.x}, ${tile.coordinate.y}: ${facility?.name ?? statusNames[tile.status]}`}
-                title={facility?.name ?? statusNames[tile.status]}
+                aria-label={`${tile.coordinate.x}, ${tile.coordinate.y}: ${facilityName ?? statusNames[tile.status]}`}
+                title={facilityName ?? statusNames[tile.status]}
               >
                 {facility && room ? <>
                   <GameIcon iconId={facility.iconId} size={38} />
@@ -154,7 +156,7 @@ export function DungeonMap({
             ? <GameIcon iconId={selectedFacility.iconId} label={selectedFacility.name} size={42} className="tile-inspector__icon" />
             : <span className={`status-gem status-gem--${selectedTile.status}`} />}
           <div>
-            <p>{selectedFacility?.name ?? statusNames[selectedTile.status]}{selectedRoom ? ` · Lv.${selectedRoom.level}` : ''}</p>
+            <p>{selectedRoom ? getRoomDisplayName(state, selectedRoom) : selectedFacility?.name ?? statusNames[selectedTile.status]}{selectedRoom ? ` · Lv.${selectedRoom.level}` : ''}</p>
             <span>좌표 {selectedTile.coordinate.x}, {selectedTile.coordinate.y}</span>
           </div>
         </div>

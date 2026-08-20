@@ -46,7 +46,7 @@ export const facilityDefinitions: FacilityDefinition[] = [
   },
   {
     id: 'guard_post', name: '경비실', shortName: '경비실', description: '배치한 주민이 침입에 대비하는 방어 거점입니다.',
-    role: '주민 배치·전투력 증폭', iconId: 'room_guard_post', category: 'defense', buildable: true, requiredTier: 2, buildCost: { gold: 10, material: 30 },
+    role: '주민 배치·전투력 증폭', iconId: 'room_guard_post', category: 'defense', buildable: true, requiredTier: 1, buildCost: { gold: 10, material: 30 },
     levels: [
       { level: 1, dailyEffects: [], defense: 3, staffSlots: 2, modifiers: [{ type: 'combatContributionMultiplier', value: 1.25 }], goldMaintenance: 1, upgradeCost: { gold: 18, material: 36 } },
       { level: 2, dailyEffects: [], defense: 5, staffSlots: 3, modifiers: [{ type: 'combatContributionMultiplier', value: 1.4 }], goldMaintenance: 2, upgradeCost: { gold: 30, material: 52 } },
