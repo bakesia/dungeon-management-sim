@@ -1,13 +1,17 @@
 import { getTotalGoldMaintenance } from '../../engine/day/processMaintenance'
+import { calculateDungeonDefense } from '../../engine/invasion/calculateDungeonDefense'
 import type { GameState } from '../../types/game'
 
 interface QuickAccessProps {
   state: GameState
-  onOpenAll: () => void
+  onOpenInventory: () => void
+  onOpenStatistics: () => void
+  onOpenManagement: () => void
 }
 
-export function QuickAccess({ state, onOpenAll }: QuickAccessProps) {
+export function QuickAccess({ state, onOpenInventory, onOpenStatistics, onOpenManagement }: QuickAccessProps) {
   const maintenance = getTotalGoldMaintenance(state)
+  const defense = calculateDungeonDefense(state)
 
   return (
     <div className="quick-access" aria-label="빠른 접근">
@@ -15,7 +19,12 @@ export function QuickAccess({ state, onOpenAll }: QuickAccessProps) {
         <span>NEXT DAY</span>
         <strong>유지비 -{maintenance}G</strong>
       </div>
-      <button className="quick-access__manage" type="button" onClick={onOpenAll}>던전 관리</button>
+      <div className="quick-access__maintenance quick-access__defense" title="현재 모든 방어 기여를 합산한 수치">
+        <span>DEFENSE</span><strong>방어력 {defense}</strong>
+      </div>
+      <button className="quick-access__manage" type="button" onClick={onOpenInventory}>인벤토리</button>
+      <button className="quick-access__manage" type="button" onClick={onOpenStatistics}>통계</button>
+      <button className="quick-access__manage" type="button" onClick={onOpenManagement}>던전 관리</button>
     </div>
   )
 }

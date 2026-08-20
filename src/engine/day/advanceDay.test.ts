@@ -25,7 +25,7 @@ describe('advanceDay', () => {
     expect(next.events.daysSinceLastEvent).toBe(1)
     expect(next.invasion.daysSinceLastInvasion).toBe(1)
     expect(next.logs.map((entry) => entry.message)).toContain('DAY 1 종료')
-    expect(next.logs.map((entry) => entry.message)).toContain('주민들이 식량을 소비했습니다. [식량 -5]')
+    expect(next.logs.some((entry) => entry.message.includes('[오늘의 수급]') && entry.message.includes('식량') && entry.message.includes('-5 주민 소비'))).toBe(true)
     expect(next.logs.at(-1)?.message).toBe('DAY 2 시작')
   })
 
@@ -51,10 +51,12 @@ describe('advanceDay', () => {
     expect(next.resources.food).toBe(35)
     expect(next.resources.mana).toBe(19)
     const messages = next.logs.map((entry) => entry.message)
-    expect(messages.findIndex((message) => message.includes('시설 유지비')))
-      .toBeLessThan(messages.findIndex((message) => message.includes('채굴장 생산')))
-    expect(messages.findIndex((message) => message.includes('채굴장 생산')))
-      .toBeLessThan(messages.findIndex((message) => message.includes('식량을 소비')))
+    const economyLogs = messages.filter((message) => message.includes('[오늘의 수급]'))
+    expect(economyLogs).toHaveLength(1)
+    expect(economyLogs[0]).toContain('골드')
+    expect(economyLogs[0]).toContain('자재')
+    expect(economyLogs[0]).toContain('식량')
+    expect(economyLogs[0]).toContain('마력')
   })
 
   it('can generate an event and resolve an automatic invasion in the same day', () => {

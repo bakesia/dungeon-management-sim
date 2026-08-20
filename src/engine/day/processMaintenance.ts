@@ -15,7 +15,7 @@ export function getTotalGoldMaintenance(state: GameState): number {
   return Object.values(state.dungeon.rooms).reduce((total, room) => total + getRoomGoldMaintenance(room), 0)
 }
 
-export function processMaintenance(state: GameState, now = new Date()): GameState {
+export function processMaintenance(state: GameState, now = new Date(), addSummaryLog = true): GameState {
   const requiredGold = getTotalGoldMaintenance(state)
   const paidGold = Math.min(state.resources.gold ?? 0, requiredGold)
   const shortfall = requiredGold - paidGold
@@ -37,6 +37,7 @@ export function processMaintenance(state: GameState, now = new Date()): GameStat
     if (effect.type !== 'addResource') return []
     return [`${resourceDefinitionById[effect.resourceId]?.name ?? effect.resourceId} ${effect.amount}`]
   }).join(' · ')
+  if (!addSummaryLog && shortfall === 0) return nextState
   nextState = applyEffect(nextState, {
     type: 'addLog',
     category: shortfall > 0 ? 'warning' : 'resource',

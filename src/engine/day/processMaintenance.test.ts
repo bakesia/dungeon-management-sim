@@ -17,6 +17,7 @@ describe('facility maintenance', () => {
 
   it('pays a single total without debt and applies a predictable shortage penalty', () => {
     let state = createInitialGameState()
+    state.currentTierId = 'tier_2'
     state = buildFacility(state, 'guard_post', '0:0:-1')
     state.resources.gold = 1
     const short = processMaintenance(state)
@@ -32,6 +33,7 @@ describe('facility maintenance', () => {
 
   it('reduces same-day production when maintenance is short', () => {
     let state = createInitialGameState()
+    state.currentTierId = 'tier_2'
     state = adjustResidentAssignment(state, 'facility-mine-1', 'goblin', 1)
     state = adjustResidentAssignment(state, 'facility-mine-1', 'goblin', 1)
     state.resources.gold = 0
@@ -43,6 +45,7 @@ describe('facility maintenance', () => {
 
   it('applies the same-day penalty to defense', () => {
     let state = createInitialGameState()
+    state.currentTierId = 'tier_2'
     state = buildFacility(state, 'guard_post', '0:0:-1')
     state = adjustResidentAssignment(state, state.dungeon.tiles['0:0:-1']!.facilityInstanceId!, 'goblin', 1)
     state = adjustResidentAssignment(state, state.dungeon.tiles['0:0:-1']!.facilityInstanceId!, 'goblin', 1)

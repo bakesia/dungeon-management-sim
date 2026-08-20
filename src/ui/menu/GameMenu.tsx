@@ -1,7 +1,6 @@
-import { ArrowLeft, Backpack, Hammer, Landmark, Save, Users, UserRoundCog, X } from 'lucide-react'
+import { ArrowLeft, Backpack, BarChart3, Hammer, Landmark, Save, Users, UserRoundCog, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
-import { facilityDefinitions } from '../../content/facilities/facilities'
 import { tierDefinitions } from '../../content/tiers/tiers'
 import { getConditionProgress } from '../../engine/conditions/conditionProgress'
 import { calculateDungeonDefenseBreakdown } from '../../engine/invasion/calculateDungeonDefense'
@@ -18,6 +17,9 @@ import { resourceDefinitions } from '../../content/resources/resources'
 import { getResourceCapacity, isResourceOverCapacity } from '../../engine/resources/resourceCapacity'
 import { GameIcon } from '../icons/GameIcon'
 import { InventoryPanel } from '../inventory/InventoryPanel'
+import { StatisticsPanel } from '../statistics/StatisticsPanel'
+import { canPromoteDungeon } from '../../engine/day/processProgression'
+import { getConstructionMenuGroups } from '../build/constructionMenu'
 
 interface GameMenuProps {
   state: GameState
@@ -35,11 +37,12 @@ interface GameMenuProps {
   onRecruit: (offerId: string) => boolean
   onService: (serviceId: string) => boolean
   onBlacksmithRepair: (instanceId: string) => boolean
+  onPromote: () => boolean
   initialView?: MenuView
   initialNpcFeature?: FeatureId | null
 }
 
-export type MenuView = 'main' | 'build' | 'population' | 'dungeon' | 'npcs' | 'inventory'
+export type MenuView = 'main' | 'build' | 'population' | 'dungeon' | 'npcs' | 'inventory' | 'statistics'
 
 function formatSignedAmount(amount: number): string {
   return `${amount >= 0 ? '+' : ''}${amount}`
@@ -71,12 +74,13 @@ function describeMaintenance(facility: FacilityDefinition): string[] {
   return maintenance.length > 0 ? maintenance : ['없음']
 }
 
-export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onReturnToTitle, onSelectBuild, preferences, onPreferenceChange, onPurchase, onSell, onHire, onRecruit, onService, onBlacksmithRepair, initialView = 'main', initialNpcFeature = null }: GameMenuProps) {
+export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onReturnToTitle, onSelectBuild, preferences, onPreferenceChange, onPurchase, onSell, onHire, onRecruit, onService, onBlacksmithRepair, onPromote, initialView = 'main', initialNpcFeature = null }: GameMenuProps) {
   const tier = selectCurrentTier(state)
   const [view, setView] = useState<MenuView>(initialView)
   const defense = calculateDungeonDefenseBreakdown(state)
   const currentTierLevel = tier?.level ?? 1
   const nextTier = [...tierDefinitions].sort((a, b) => a.level - b.level).find((item) => item.level === (tier?.level ?? 1) + 1)
+  const { available: availableFacilities, locked: lockedFacilities } = getConstructionMenuGroups(currentTierLevel)
 
   const selectBuild = (facilityId: string) => {
     onSelectBuild(facilityId)
@@ -126,7 +130,7 @@ export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onRetu
             <span className="menu-list__label"><UserRoundCog className="size-3" aria-hidden="true" />NPC</span><span>거래 · 지원</span>
           </button>
           <button type="button" onClick={() => setView('inventory')}><span className="menu-list__label"><Backpack className="size-3" aria-hidden="true" />인벤토리</span><span>{state.inventory.reduce((sum, entry) => sum + entry.quantity, 0)}개</span></button>
-          <button type="button" disabled>기록<span>준비 중</span></button>
+          <button type="button" onClick={() => setView('statistics')}><span className="menu-list__label"><BarChart3 className="size-3" aria-hidden="true" />통계</span><span>수급 · 방어</span></button>
           <button type="button" onClick={onSave}>
             <span className="menu-list__label"><Save className="size-3" aria-hidden="true" />저장</span>
             <span>DEXIE</span>
@@ -142,25 +146,25 @@ export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onRetu
             <button className="menu-back" type="button" onClick={() => setView('main')}><ArrowLeft className="size-3" />관리 메뉴</button>
             <h3>건설할 시설</h3>
             <p>시설을 선택한 뒤 지도에서 빈 공간을 클릭하십시오.</p>
+            <h4 className="build-section-title">현재 건설 가능</h4>
             <div className="build-list">
-              {facilityDefinitions
-                .filter((facility) => facility.buildable && facility.requiredTier <= currentTierLevel + 1)
+              {availableFacilities
                 .map((facility) => {
-                  const isLocked = facility.requiredTier > currentTierLevel
                   const canPay = canAfford(state, facility.buildCost)
                   const requirements = [
-                    { met: !isLocked, label: `Tier ${facility.requiredTier}` },
+                    { met: true, label: `Tier ${facility.requiredTier}` },
                     ...facility.requirements.map((condition) => {
                       const progress = getConditionProgress(state, condition)
                       return { met: progress.met, label: `${progress.label} ${progress.current}/${progress.target}` }
                     }),
                   ]
+                  const requirementsMet = requirements.every((requirement) => requirement.met)
                   return (
-                    <button className="build-card" type="button" key={facility.id} onClick={() => selectBuild(facility.id)} disabled={isLocked || !canPay}>
+                    <button className="build-card" type="button" key={facility.id} onClick={() => selectBuild(facility.id)} disabled={!canPay || !requirementsMet}>
                       <span className="build-card__header">
                         <GameIcon iconId={facility.iconId} label={facility.name} size={46} />
                         <span><strong>{facility.name}</strong><small>{facility.description}</small></span>
-                        <em>{isLocked ? 'LOCKED' : canPay ? 'READY' : '자원 부족'}</em>
+                        <em>{!requirementsMet ? '조건 미충족' : canPay ? 'READY' : '자원 부족'}</em>
                       </span>
                       <span className="build-card__sections">
                         <span className="build-card__block"><small>건설 비용</small><strong>{formatResourceCost(facility.buildCost)}</strong></span>
@@ -172,6 +176,14 @@ export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onRetu
                   )
                 })}
             </div>
+            {lockedFacilities.length > 0 && <>
+              <h4 className="build-section-title build-section-title--locked">잠긴 시설</h4>
+              <div className="build-list build-list--locked">
+                {lockedFacilities.map((facility) => <div className="build-card build-card--locked" key={facility.id}>
+                  <span className="build-card__header"><span className="locked-facility-icon" aria-hidden="true">?</span><span><strong>???</strong><small>Tier {facility.requiredTier}에서 새로운 시설이 해금됩니다.</small></span><em>LOCKED</em></span>
+                </div>)}
+              </div>
+            </>}
           </section>
         )}
         {view === 'population' && (
@@ -215,9 +227,11 @@ export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onRetu
                 })}
               </div>
             )}
+            {nextTier && <button className="tier-promote-button" type="button" disabled={!canPromoteDungeon(state)} onClick={onPromote}>{canPromoteDungeon(state) ? `Tier ${nextTier.level} 승급` : '승급 조건 미충족'}</button>}
           </section>
         )}
         {view === 'inventory' && <section className="menu-subview"><button className="menu-back" type="button" onClick={() => setView('main')}><ArrowLeft className="size-3" />관리 메뉴</button><h3>인벤토리</h3><InventoryPanel state={state}/></section>}
+        {view === 'statistics' && <section className="menu-subview"><button className="menu-back" type="button" onClick={() => setView('main')}><ArrowLeft className="size-3" />관리 메뉴</button><h3>통계</h3><StatisticsPanel state={state} /></section>}
         {view === 'npcs' && <section className="menu-subview"><button className="menu-back" type="button" onClick={() => setView('main')}><ArrowLeft className="size-3" />관리 메뉴</button><h3>던전의 협력자</h3><NpcHub state={state} initialFeature={initialNpcFeature} onPurchase={onPurchase} onSell={onSell} onHire={onHire} onRecruit={onRecruit} onService={onService} onRepair={onBlacksmithRepair} /></section>}
         <p className="save-status" aria-live="polite">{(saveError ?? saveStatus) || 'DAY 종료 시 자동 저장됩니다.'}</p>
       </motion.aside>

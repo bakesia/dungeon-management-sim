@@ -9,13 +9,14 @@ import { calculateDungeonDefense } from '../invasion/calculateDungeonDefense'
 describe('representative balance health', () => {
   it('lets an early guard plan reliably stop solo raiders without trivializing every beginner party', () => {
     let state = createInitialGameState()
+    state.currentTierId = 'tier_2'
     state = buildFacility(state, 'guard_post', '0:0:-1')
     const guard = state.dungeon.rooms[state.dungeon.tiles['0:0:-1']!.facilityInstanceId!]!
     guard.residentAssignments = [{ raceId: 'goblin', count: 2 }]
     const defense = calculateDungeonDefense(state)
-    expect(defense).toBe(18)
+    expect(defense).toBe(17)
     expect(defense).toBeGreaterThan(invaderDefinitionById.invader_wandering_adventurer!.powerRange.max)
-    expect(defense).toBe(invaderDefinitionById.invader_beginner_party!.powerRange.min)
+    expect(defense).toBeLessThan(invaderDefinitionById.invader_beginner_party!.powerRange.min)
   })
 
   it('places a practical mid-game guard and trap build inside the veteran challenge range', () => {
@@ -30,7 +31,7 @@ describe('representative balance health', () => {
     guard.residentAssignments = [{ raceId: 'goblin', count: 3 }]
     const defense = calculateDungeonDefense(state)
     const veteran = invaderDefinitionById.invader_veteran_party!
-    expect(defense).toBe(54)
+    expect(defense).toBe(52)
     expect(defense).toBeGreaterThan(veteran.powerRange.min)
     expect(defense).toBeLessThan(veteran.powerRange.max)
   })
@@ -44,7 +45,7 @@ describe('representative balance health', () => {
     state.dungeon.rooms.late_gate = { instanceId: 'late_gate', definitionId: 'reinforced_gate', level: 2, residentAssignments: [], durability: 100, condition: 'normal', tileId: 'late:gate' }
     const defense = calculateDungeonDefense(state)
     const elite = invaderDefinitionById.invader_elite_subjugation!
-    expect(defense).toBe(98)
+    expect(defense).toBe(94)
     expect(defense).toBeGreaterThan(elite.powerRange.min)
     expect(defense).toBeLessThan(elite.powerRange.max)
   })

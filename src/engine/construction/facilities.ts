@@ -1,10 +1,10 @@
 import { facilityDefinitionById } from '../../content/facilities/facilities'
-import type { FacilityId } from '../../types/content'
+import type { FacilityId, ResourceCost } from '../../types/content'
 import type { FacilityInstance, GameState } from '../../types/game'
 import type { ActionCheck } from '../../types/engine'
 import { checkConditions } from '../conditions/checkConditions'
 import { tierDefinitionById } from '../../content/tiers/tiers'
-import { applyEffect } from '../effects/applyEffects'
+import { applyEffect, applyEffects } from '../effects/applyEffects'
 import { canAfford, formatResourceCost, payResourceCost } from '../resources/resourceCosts'
 
 function createInstanceId(state: GameState, facilityId: FacilityId): string {
@@ -44,7 +44,7 @@ export function buildFacility(state: GameState, facilityId: FacilityId, targetTi
     instanceId,
     definitionId: facilityId,
     level: 1,
-      residentAssignments: [],
+    residentAssignments: [],
     durability: 100,
     condition: 'normal',
     tileId: targetTileId,
@@ -115,14 +115,20 @@ export function demolishFacility(state: GameState, instanceId: string, now = new
   const tile = state.dungeon.tiles[room.tileId]
   if (!tile) throw new Error(`시설 타일 "${room.tileId}"을 찾을 수 없습니다.`)
 
-  const rooms = { ...state.dungeon.rooms }
+  const refund = getDemolitionRefund(state, instanceId)
+  const refundedState = applyEffects(state, Object.entries(refund).map(([resourceId, amount]) => ({
+    type: 'addResource' as const,
+    resourceId,
+    amount,
+  })), now)
+  const rooms = { ...refundedState.dungeon.rooms }
   delete rooms[instanceId]
   const nextState: GameState = {
-    ...state,
+    ...refundedState,
     dungeon: {
       rooms,
       tiles: {
-        ...state.dungeon.tiles,
+        ...refundedState.dungeon.tiles,
         [room.tileId]: { ...tile, status: 'empty', facilityInstanceId: undefined },
       },
     },
@@ -130,6 +136,25 @@ export function demolishFacility(state: GameState, instanceId: string, now = new
   return applyEffect(nextState, {
     type: 'addLog',
     category: 'system',
-    message: `${definition.name}을 철거했습니다. 배치된 주민은 자동으로 복귀했습니다.`,
+    message: `${definition.name}을 철거했습니다. 누적 투자비의 75%를 환급했습니다. [${formatResourceCost(refund)}] 배치된 주민은 자동으로 복귀했습니다.`,
   }, now)
+}
+
+export function getDemolitionRefund(state: GameState, instanceId: string): ResourceCost {
+  const room = state.dungeon.rooms[instanceId]
+  if (!room) throw new Error(`시설 인스턴스 "${instanceId}"을 찾을 수 없습니다.`)
+  const definition = facilityDefinitionById[room.definitionId]
+  if (!definition?.buildable) return {}
+
+  const investment: ResourceCost = { ...definition.buildCost }
+  for (let level = 1; level < room.level; level += 1) {
+    const upgradeCost = definition.levels.find((item) => item.level === level)?.upgradeCost ?? {}
+    for (const [resourceId, amount] of Object.entries(upgradeCost)) {
+      investment[resourceId] = (investment[resourceId] ?? 0) + amount
+    }
+  }
+
+  return Object.fromEntries(Object.entries(investment)
+    .map(([resourceId, amount]): [string, number] => [resourceId, Math.floor(amount * 0.75)])
+    .filter(([, amount]) => amount > 0))
 }

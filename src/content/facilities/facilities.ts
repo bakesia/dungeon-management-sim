@@ -37,7 +37,7 @@ export const facilityDefinitions: FacilityDefinition[] = [
   },
   {
     id: 'warehouse', name: '창고', shortName: '창고', description: '골드·자재·식량의 저장 한도를 늘립니다.',
-    role: '일반 자원 저장 한도', iconId: 'room_warehouse', category: 'storage', buildable: true, requiredTier: 2, buildCost: { material: 20 },
+    role: '일반 자원 저장 한도', iconId: 'room_warehouse', category: 'storage', buildable: true, requiredTier: 1, buildCost: { material: 20 },
     levels: [
       { level: 1, dailyEffects: [], storageCapacity: { gold: 50, material: 75, food: 50 }, goldMaintenance: 0, upgradeCost: { material: 30 } },
       { level: 2, dailyEffects: [], storageCapacity: { gold: 100, material: 150, food: 100 }, goldMaintenance: 1, upgradeCost: { material: 50 } },
@@ -46,11 +46,11 @@ export const facilityDefinitions: FacilityDefinition[] = [
   },
   {
     id: 'guard_post', name: '경비실', shortName: '경비실', description: '배치한 주민이 침입에 대비하는 방어 거점입니다.',
-    role: '주민 배치 방어', iconId: 'room_guard_post', category: 'defense', buildable: true, requiredTier: 1, buildCost: { gold: 10, material: 30 },
+    role: '주민 배치·전투력 증폭', iconId: 'room_guard_post', category: 'defense', buildable: true, requiredTier: 2, buildCost: { gold: 10, material: 30 },
     levels: [
-      { level: 1, dailyEffects: [], defense: 4, staffSlots: 2, modifiers: [{ type: 'combatContributionMultiplier', value: 1.25 }], goldMaintenance: 1, upgradeCost: { gold: 18, material: 36 } },
-      { level: 2, dailyEffects: [], defense: 7, staffSlots: 3, modifiers: [{ type: 'combatContributionMultiplier', value: 1.35 }], goldMaintenance: 2, upgradeCost: { gold: 30, material: 52 } },
-      { level: 3, dailyEffects: [], defense: 10, staffSlots: 4, modifiers: [{ type: 'combatContributionMultiplier', value: 1.5 }], goldMaintenance: 3 },
+      { level: 1, dailyEffects: [], defense: 3, staffSlots: 2, modifiers: [{ type: 'combatContributionMultiplier', value: 1.25 }], goldMaintenance: 1, upgradeCost: { gold: 18, material: 36 } },
+      { level: 2, dailyEffects: [], defense: 5, staffSlots: 3, modifiers: [{ type: 'combatContributionMultiplier', value: 1.4 }], goldMaintenance: 2, upgradeCost: { gold: 30, material: 52 } },
+      { level: 3, dailyEffects: [], defense: 7, staffSlots: 4, modifiers: [{ type: 'combatContributionMultiplier', value: 1.55 }], goldMaintenance: 3 },
     ], tags: ['defense', 'combat'], requirements: [],
   },
   {
@@ -58,8 +58,8 @@ export const facilityDefinitions: FacilityDefinition[] = [
     role: '마력 생산', iconId: 'room_mana_chamber', category: 'production', buildable: true, requiredTier: 2, buildCost: { material: 30 },
     levels: [
       { level: 1, dailyEffects: [{ type: 'addResource', resourceId: 'mana', amount: 4 }], staffSlots: 1, goldMaintenance: 1, upgradeCost: { material: 40, mana: 10 } },
-      { level: 2, dailyEffects: [{ type: 'addResource', resourceId: 'mana', amount: 7 }], staffSlots: 2, goldMaintenance: 2, upgradeCost: { material: 60, mana: 20 } },
-      { level: 3, dailyEffects: [{ type: 'addResource', resourceId: 'mana', amount: 11 }], staffSlots: 3, goldMaintenance: 2 },
+      { level: 2, dailyEffects: [{ type: 'addResource', resourceId: 'mana', amount: 8 }], staffSlots: 2, goldMaintenance: 2, upgradeCost: { material: 60, mana: 20 } },
+      { level: 3, dailyEffects: [{ type: 'addResource', resourceId: 'mana', amount: 13 }], staffSlots: 3, goldMaintenance: 2 },
     ], tags: ['production', 'mana'], requirements: [],
   },
   {
@@ -73,7 +73,7 @@ export const facilityDefinitions: FacilityDefinition[] = [
   },
   {
     id: 'mana_reservoir', name: '마력 저장고', shortName: '마력고', description: '마력만 안전하게 보관하여 저장 한도를 늘립니다.',
-    role: '마력 저장 한도', iconId: 'room_mana_reservoir', category: 'storage', buildable: true, requiredTier: 3, buildCost: { material: 45, mana: 20 },
+    role: '마력 저장 한도', iconId: 'room_mana_reservoir', category: 'storage', buildable: true, requiredTier: 2, buildCost: { material: 45, mana: 20 },
     levels: [
       { level: 1, dailyEffects: [], storageCapacity: { mana: 50 }, goldMaintenance: 0, upgradeCost: { material: 40, mana: 20 } },
       { level: 2, dailyEffects: [], storageCapacity: { mana: 100 }, goldMaintenance: 1, upgradeCost: { material: 60, mana: 30 } },
@@ -82,20 +82,20 @@ export const facilityDefinitions: FacilityDefinition[] = [
   },
   {
     id: 'infirmary', name: '치료소', shortName: '치료소', description: '상시 의료 지원으로 침입 패배 시 주민 손실을 줄입니다.',
-    role: '주민 손실 위험 감소', iconId: 'room_infirmary', category: 'housing', buildable: true, requiredTier: 4, buildCost: { material: 40, gold: 25 },
+    role: '상시 주민 보호', iconId: 'room_infirmary', category: 'housing', buildable: true, requiredTier: 3, buildCost: { material: 40, gold: 25 },
     levels: [
-      { level: 1, dailyEffects: [], modifiers: [{ type: 'residentLossChanceMultiplier', value: 0.9 }], goldMaintenance: 1, upgradeCost: { material: 35, gold: 20 } },
-      { level: 2, dailyEffects: [], modifiers: [{ type: 'residentLossChanceMultiplier', value: 0.8 }], goldMaintenance: 2, upgradeCost: { material: 50, gold: 30 } },
-      { level: 3, dailyEffects: [], modifiers: [{ type: 'residentLossChanceMultiplier', value: 0.7 }], goldMaintenance: 2 },
+      { level: 1, dailyEffects: [], modifiers: [{ type: 'residentLossChanceMultiplier', value: 0.8 }], goldMaintenance: 1, upgradeCost: { material: 35, gold: 20 } },
+      { level: 2, dailyEffects: [], modifiers: [{ type: 'residentLossChanceMultiplier', value: 0.65 }], goldMaintenance: 2, upgradeCost: { material: 50, gold: 30 } },
+      { level: 3, dailyEffects: [], modifiers: [{ type: 'residentLossChanceMultiplier', value: 0.5 }], goldMaintenance: 2 },
     ], tags: ['support', 'recovery', 'population_protection'], requirements: [],
   },
   {
     id: 'reinforced_gate', name: '강화 관문', shortName: '관문', description: '인구 배치 없이 고정 방어력을 제공하는 견고한 관문입니다.',
-    role: '무인 고정 방어', iconId: 'room_reinforced_gate', category: 'defense', buildable: true, requiredTier: 4, buildCost: { material: 55, gold: 30 },
+    role: '무인·무마력 안정 방어', iconId: 'room_reinforced_gate', category: 'defense', buildable: true, requiredTier: 3, buildCost: { material: 55, gold: 30 },
     levels: [
-      { level: 1, dailyEffects: [], defense: 18, goldMaintenance: 2, upgradeCost: { material: 46, gold: 28 } },
-      { level: 2, dailyEffects: [], defense: 30, goldMaintenance: 3, upgradeCost: { material: 64, gold: 40 } },
-      { level: 3, dailyEffects: [], defense: 44, goldMaintenance: 4 },
+      { level: 1, dailyEffects: [], defense: 16, goldMaintenance: 2, upgradeCost: { material: 46, gold: 28 } },
+      { level: 2, dailyEffects: [], defense: 28, goldMaintenance: 3, upgradeCost: { material: 64, gold: 40 } },
+      { level: 3, dailyEffects: [], defense: 42, goldMaintenance: 4 },
     ], tags: ['defense', 'gate'], requirements: [],
   },
 ]

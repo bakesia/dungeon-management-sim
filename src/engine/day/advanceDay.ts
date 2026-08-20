@@ -7,9 +7,9 @@ import { processDailyProduction } from './processDailyProduction'
 import { processFoodConsumption } from './processFoodConsumption'
 import { processMaintenance } from './processMaintenance'
 import { processPopulationState } from './processPopulationState'
-import { processProgression } from './processProgression'
 import { processCoreRecovery } from './processCoreRecovery'
 import { processNpcRuntime } from '../npcs/npcServices'
+import { addDailyEconomySummary } from './dailyEconomy'
 
 export interface AdvanceDayContext {
   now?: Date
@@ -35,16 +35,17 @@ export function advanceDay(state: GameState, context: AdvanceDayContext = {}): G
     message: `DAY ${state.day} 종료`,
   }, now)
 
-  nextState = processMaintenance(nextState, now)
-  nextState = processDailyProduction(nextState, now)
-  nextState = processFoodConsumption(nextState, now)
+  const economyStart = nextState
+  const afterMaintenance = processMaintenance(nextState, now, false)
+  const afterProduction = processDailyProduction(afterMaintenance, now, false)
+  const afterFood = processFoodConsumption(afterProduction, now, false)
+  nextState = addDailyEconomySummary(economyStart, afterMaintenance, afterProduction, afterFood, now)
   nextState = processPopulationState(nextState)
   nextState = processNpcRuntime(nextState, randomSource)
   nextState = processEventRoll(nextState, randomSource, now)
   nextState = processNpcVisitRoll(nextState, randomSource, now)
   nextState = processInvasionRoll(nextState, randomSource)
   nextState = processCoreRecovery(nextState, Boolean(nextState.invasion.pendingResolution), now)
-  nextState = processProgression(nextState, now)
 
   nextState = {
     ...nextState,

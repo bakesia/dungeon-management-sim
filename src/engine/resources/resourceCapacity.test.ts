@@ -53,10 +53,10 @@ describe('resource capacity', () => {
     state.resources.material = 250
     state = demolishFacility(state, instanceId)
     expect(getResourceCapacity(state, 'material')).toBe(200)
-    expect(state.resources.material).toBe(250)
+    expect(state.resources.material).toBe(265)
     expect(isResourceOverCapacity(state, 'material')).toBe(true)
-    expect(applyEffect(state, { type: 'addResource', resourceId: 'material', amount: 10 }).resources.material).toBe(250)
-    const spent = applyEffect(state, { type: 'addResource', resourceId: 'material', amount: -60 })
+    expect(applyEffect(state, { type: 'addResource', resourceId: 'material', amount: 10 }).resources.material).toBe(265)
+    const spent = applyEffect(state, { type: 'addResource', resourceId: 'material', amount: -75 })
     expect(spent.resources.material).toBe(190)
     expect(applyEffect(spent, { type: 'addResource', resourceId: 'material', amount: 20 }).resources.material).toBe(200)
   })

@@ -9,7 +9,7 @@ import { getRoomConditionEfficiency } from '../construction/roomCondition'
 import { applyEffect, applyEffects } from '../effects/applyEffects'
 import { calculateFacilityEfficiency, getFacilityLevel } from '../population/assignWorkers'
 import { defaultRandomSource, type RandomSource } from '../random'
-import { calculateDungeonDefenseBreakdown } from './calculateDungeonDefense'
+import { aggregateDefenseContributions, calculateDungeonDefenseBreakdown } from './calculateDungeonDefense'
 
 function clampRoll(value: number): number {
   return Math.min(Math.max(value, 0), 0.999999999)
@@ -160,7 +160,7 @@ export function resolveInvasion(state: GameState, invader: InvaderDefinition, ra
     startedOnDay: state.day,
     defensePower: defense.total,
     success,
-    contributions: defense.contributions,
+    contributions: aggregateDefenseContributions(defense.contributions),
     effects: success ? [...invader.rewards, ...rollLoot(invader, randomSource)] : createDefeatEffects(state, invader, randomSource),
   }
 }
@@ -178,7 +178,7 @@ export function applyInvasionResolution(state: GameState, resolution: InvasionRe
   nextState = { ...nextState, logs: nextState.logs.slice(0, logCountBeforeEffects) }
 
   const contributionLines = resolution.contributions.length > 0
-    ? resolution.contributions.map((item) => `${item.label.padEnd(12, ' ')} +${item.amount}`).join('\n')
+    ? resolution.contributions.map((item) => `${item.label} +${item.amount}`).join('\n')
     : '방어 기여 없음'
   const effectSummary = [formatEffects(state, appliedEffects), ...effectLogs.map((entry) => entry.message)].filter(Boolean).join('\n')
   const groupId = `invasion-${resolution.id}`

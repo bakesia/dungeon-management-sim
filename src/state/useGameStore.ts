@@ -7,7 +7,7 @@ import { createInitialGameState } from '../engine/game/createInitialGameState'
 import { adjustResidentAssignment as runAdjustResidentAssignment } from '../engine/population/assignWorkers'
 import { hireMercenary as runHireMercenary, performNpcService as runNpcService, purchaseShopItem as runPurchaseShopItem, recruitResident as runRecruitResident, repairWithBlacksmith as runRepairWithBlacksmith, sellInventoryItem as runSellInventoryItem } from '../engine/npcs/npcServices'
 import { repairFacility as runRepairFacility } from '../engine/construction/repairFacility'
-import { continueAfterClear as runContinueAfterClear, processProgression as runProcessProgression } from '../engine/day/processProgression'
+import { continueAfterClear as runContinueAfterClear, promoteDungeon as runPromoteDungeon } from '../engine/day/processProgression'
 import { applyInvasionResolution as runApplyInvasionResolution } from '../engine/invasion/processInvasion'
 import { confirmPopulationReplacement as runConfirmPopulationReplacement, declinePopulationJoin as runDeclinePopulationJoin } from '../engine/population/residentReplacement'
 import { saveRepository } from '../persistence/saveRepository'
@@ -39,6 +39,7 @@ interface GameStore {
   confirmPopulationReplacement(acceptances: Record<string, number>, removals: Record<string, number>): boolean
   declinePopulationJoin(): void
   repairFacility(instanceId: string): boolean
+  promoteDungeon(): boolean
   continueAfterClear(): Promise<boolean>
 }
 
@@ -206,7 +207,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const current = get().game
     const resolution = current.invasion.pendingResolution
     if (!resolution) return null
-    set({ game: runProcessProgression(runApplyInvasionResolution(current, resolution)), lastActionError: null })
+    set({ game: runApplyInvasionResolution(current, resolution), lastActionError: null })
     return resolution.success ? 'win' : 'loss'
   },
 
@@ -230,6 +231,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return true
     } catch (error) {
       set({ lastActionError: error instanceof Error ? error.message : '시설 수리에 실패했습니다.' })
+      return false
+    }
+  },
+
+  promoteDungeon: () => {
+    try {
+      set({ game: runPromoteDungeon(get().game), lastActionError: null })
+      return true
+    } catch (error) {
+      set({ lastActionError: error instanceof Error ? error.message : '던전 승급에 실패했습니다.' })
       return false
     }
   },

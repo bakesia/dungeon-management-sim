@@ -125,6 +125,7 @@ export function validateContent(): void {
     errors.push(...findDuplicateIds(`facility level (${facility.id})`, levelNumbers))
     if (!tierLevels.has(facility.requiredTier)) errors.push(`Facility "${facility.id}" references unknown requiredTier ${facility.requiredTier}.`)
     if (facility.role.trim().length === 0) errors.push(`Facility "${facility.id}" has no role description.`)
+    if (!['core', 'housing', 'production', 'storage', 'defense'].includes(facility.category)) errors.push(`Facility "${facility.id}" has invalid category "${facility.category}".`)
     if (!gameIconDefinitionById[facility.iconId]) errors.push(`Missing icon asset mapping "${facility.iconId}" for facility "${facility.id}".`)
     if (sortedLevels.some((level, index) => level !== index + 1)) errors.push(`Facility "${facility.id}" levels must be consecutive from 1.`)
     facility.requirements.forEach((condition) => validateCondition(condition, `facility "${facility.id}"`))
@@ -145,11 +146,16 @@ export function validateContent(): void {
 
     facility.levels.forEach((level) => {
       if ((level.staffSlots ?? 0) < 0) errors.push(`Facility "${facility.id}" level ${level.level} has negative staffSlots.`)
+      if (!Number.isFinite(level.defense ?? 0) || (level.defense ?? 0) < 0) errors.push(`Facility "${facility.id}" level ${level.level} has invalid defense.`)
+      if (!Number.isFinite(level.populationCapacity ?? 0) || (level.populationCapacity ?? 0) < 0) errors.push(`Facility "${facility.id}" level ${level.level} has invalid populationCapacity.`)
       if (!Number.isFinite(level.goldMaintenance ?? 0) || (level.goldMaintenance ?? 0) < 0) errors.push(`Facility "${facility.id}" level ${level.level} has invalid goldMaintenance.`)
       Object.entries(level.storageCapacity ?? {}).forEach(([resourceId, amount]) => {
         if (!resourceIds.has(resourceId) || typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) errors.push(`Facility "${facility.id}" level ${level.level} has invalid capacity modifier for "${resourceId}".`)
       })
       if (level.upgradeCost) validateCost(level.upgradeCost, `facility "${facility.id}" level ${level.level} upgradeCost`)
+      level.dailyEffects.forEach((effect) => {
+        if (effect.type === 'addResource' && effect.amount < 0) errors.push(`Facility "${facility.id}" level ${level.level} has negative daily production for "${effect.resourceId}".`)
+      })
       level.dailyEffects.forEach((effect) => validateEffect(effect, `facility "${facility.id}" level ${level.level}`))
       level.maintenanceEffects?.forEach((effect) => validateEffect(effect, `facility "${facility.id}" level ${level.level}`))
       level.modifiers?.forEach((modifier) => {

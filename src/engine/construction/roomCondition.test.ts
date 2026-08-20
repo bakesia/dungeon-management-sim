@@ -16,7 +16,7 @@ describe('room condition and repair', () => {
     const next = processDailyProduction(state)
 
     expect(next.resources.material).toBe(83)
-    expect(next.logs.at(-1)?.message).toContain('효율 55%')
+    expect(next.logs.at(-1)?.message).toContain('자재 +3')
   })
 
   it('pays the data-derived repair cost and restores normal condition', () => {

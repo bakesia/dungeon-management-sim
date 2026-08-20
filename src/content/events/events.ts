@@ -32,8 +32,24 @@ const baseEventDefinitions: EventDefinition[] = [
     id: 'event_old_chest', title: '오래된 상자', text: '무너진 벽 뒤에서 녹슨 자물쇠가 달린 상자를 찾았습니다.',
     conditions: [], weight: 7, once: true, tags: ['discovery', 'gold'],
     choices: [
-      { id: 'open', text: '상자를 연다', effects: [{ type: 'addResource', resourceId: 'gold', amount: 10 }, { type: 'addItem', itemId: 'loot_silver_trinket', quantity: 1 }, { type: 'addLog', category: 'resource', message: '낡은 금화와 은제 장신구를 발견했습니다. [골드 +10]' }] },
+      { id: 'open', text: '상자를 연다', effects: [{ type: 'addResource', resourceId: 'gold', amount: 14 }, { type: 'addItem', itemId: 'loot_silver_trinket', quantity: 1 }, { type: 'addLog', category: 'resource', message: '낡은 금화와 은제 장신구를 발견했습니다. [골드 +14]' }] },
       { id: 'ignore', text: '수상하니 두고 간다', effects: [{ type: 'addLog', category: 'event', message: '상자를 건드리지 않았습니다.' }] },
+    ],
+  },
+  {
+    id: 'event_abandoned_coin_purse', title: '버려진 동전 주머니', text: '입구의 돌 틈에서 급히 숨긴 듯한 작은 동전 주머니를 발견했습니다.',
+    conditions: [{ type: 'dayAtLeast', day: 3 }], weight: 6, once: false, cooldownDays: 6, tags: ['gold', 'external'],
+    choices: [
+      { id: 'take', text: '주머니를 회수한다', effects: [{ type: 'addResource', resourceId: 'gold', amount: 9 }, { type: 'addLog', category: 'resource', message: '주인 없는 동전을 회수했습니다. [골드 +9]' }] },
+      { id: 'bait', text: '미끼로 남겨 침입 흔적을 살핀다', effects: [{ type: 'changeFame', amount: -1 }, { type: 'addLog', category: 'invasion', message: '동전 주머니 주변의 흔적을 지워 던전의 소문을 조금 잠재웠습니다. [악명 -1]' }] },
+    ],
+  },
+  {
+    id: 'event_emergency_stash', title: '모험가의 비상금', text: '무너진 야영 흔적 아래에서 방수 천에 싸인 비상 물자를 찾아냈습니다.',
+    conditions: [{ type: 'dayAtLeast', day: 6 }], weight: 4, once: true, tags: ['gold', 'loot', 'external'],
+    choices: [
+      { id: 'coins', text: '동전만 챙긴다', effects: [{ type: 'addResource', resourceId: 'gold', amount: 18 }, { type: 'addLog', category: 'resource', message: '비상금에서 골드를 확보했습니다. [골드 +18]' }] },
+      { id: 'supplies', text: '남은 물품까지 회수한다', effects: [{ type: 'addItem', itemId: 'loot_adventurer_pack', quantity: 1 }, { type: 'addItem', itemId: 'loot_broken_blade', quantity: 1 }, { type: 'addLog', category: 'resource', message: '판매 가능한 모험가 물품을 회수했습니다.' }] },
     ],
   },
   {

@@ -10,30 +10,30 @@ interface JoinChoice {
 
 const joinChoicesByNpc: Record<string, JoinChoice[]> = {
   npc_merchant: [
-    { id: 'discount', text: '거래소를 맡긴다 · 골드 15', conditions: [{ type: 'flagEquals', flag: 'merchant_trail_followed', value: true }, { type: 'flagEquals', flag: 'merchant_goods_taken', value: false }], cost: { gold: 15 } },
+    { id: 'discount', text: '길 안내의 대가를 반영해 계약한다 · 골드 15', conditions: [{ type: 'flagEquals', flag: 'merchant_trail_followed', value: true }, { type: 'flagEquals', flag: 'merchant_goods_taken', value: false }], cost: { gold: 15 } },
     { id: 'surcharge', text: '배상하고 거래소를 맡긴다 · 골드 45', conditions: [{ type: 'flagEquals', flag: 'merchant_goods_taken', value: true }], cost: { gold: 45 } },
-    { id: 'standard', text: '거래소를 맡긴다 · 골드 30', conditions: [{ type: 'flagEquals', flag: 'merchant_trail_followed', value: false }, { type: 'flagEquals', flag: 'merchant_goods_taken', value: false }], cost: { gold: 30 } },
+    { id: 'standard', text: '정식 거래소 계약을 제안한다 · 골드 30', conditions: [{ type: 'flagEquals', flag: 'merchant_trail_followed', value: false }, { type: 'flagEquals', flag: 'merchant_goods_taken', value: false }], cost: { gold: 30 } },
   ],
   npc_blacksmith: [
-    { id: 'discount', text: '작업장을 내준다 · 골드 10 / 자재 15', conditions: [{ type: 'flagEquals', flag: 'forge_tools_kept', value: true }, { type: 'flagEquals', flag: 'forge_tools_scrapped', value: false }], cost: { gold: 10, material: 15 } },
+    { id: 'discount', text: '보관한 도구와 작업장을 제공한다 · 골드 10 / 자재 15', conditions: [{ type: 'flagEquals', flag: 'forge_tools_kept', value: true }, { type: 'flagEquals', flag: 'forge_tools_scrapped', value: false }], cost: { gold: 10, material: 15 } },
     { id: 'surcharge', text: '도구값을 치르고 맡긴다 · 골드 30 / 자재 40', conditions: [{ type: 'flagEquals', flag: 'forge_tools_scrapped', value: true }], cost: { gold: 30, material: 40 } },
-    { id: 'standard', text: '작업장을 내준다 · 골드 20 / 자재 30', conditions: [{ type: 'flagEquals', flag: 'forge_tools_kept', value: false }, { type: 'flagEquals', flag: 'forge_tools_scrapped', value: false }], cost: { gold: 20, material: 30 } },
+    { id: 'standard', text: '새 작업장을 마련해 정식 계약한다 · 골드 20 / 자재 30', conditions: [{ type: 'flagEquals', flag: 'forge_tools_kept', value: false }, { type: 'flagEquals', flag: 'forge_tools_scrapped', value: false }], cost: { gold: 20, material: 30 } },
   ],
   npc_tavern_keeper: [
-    { id: 'discount', text: '주점을 열게 한다 · 골드 20 / 식량 10', conditions: [{ type: 'flagEquals', flag: 'mercenaries_welcomed', value: true }], cost: { gold: 20, food: 10 } },
-    { id: 'standard', text: '주점을 열게 한다 · 골드 40 / 식량 15', conditions: [{ type: 'flagEquals', flag: 'mercenaries_welcomed', value: false }], cost: { gold: 40, food: 15 } },
+    { id: 'discount', text: '용병 인맥을 인정해 숙식을 제공한다 · 골드 20 / 식량 10', conditions: [{ type: 'flagEquals', flag: 'mercenaries_welcomed', value: true }], cost: { gold: 20, food: 10 } },
+    { id: 'standard', text: '주점 운영 자금과 식량을 제공한다 · 골드 40 / 식량 15', conditions: [{ type: 'flagEquals', flag: 'mercenaries_welcomed', value: false }], cost: { gold: 40, food: 15 } },
   ],
   npc_mage: [
-    { id: 'discount', text: '연구를 허가한다 · 마력 15', conditions: [{ type: 'flagEquals', flag: 'mana_stabilized', value: true }], cost: { mana: 15 } },
-    { id: 'standard', text: '연구를 허가한다 · 마력 30', conditions: [{ type: 'flagEquals', flag: 'mana_stabilized', value: false }], cost: { mana: 30 } },
+    { id: 'discount', text: '안정화된 마력로의 공동 연구를 제안한다 · 마력 15', conditions: [{ type: 'flagEquals', flag: 'mana_stabilized', value: true }], cost: { mana: 15 } },
+    { id: 'standard', text: '연구실용 마력을 정식 지원한다 · 마력 30', conditions: [{ type: 'flagEquals', flag: 'mana_stabilized', value: false }], cost: { mana: 30 } },
   ],
   npc_healer: [
-    { id: 'discount', text: '치료소를 맡긴다 · 골드 15 / 식량 10', conditions: [{ type: 'flagEquals', flag: 'compassionate_dungeon', value: true }], cost: { gold: 15, food: 10 } },
-    { id: 'standard', text: '치료소를 맡긴다 · 골드 25 / 식량 20', conditions: [{ type: 'flagEquals', flag: 'compassionate_dungeon', value: false }], cost: { gold: 25, food: 20 } },
+    { id: 'discount', text: '선행을 인정받아 약재와 숙식만 제공한다 · 골드 15 / 식량 10', conditions: [{ type: 'flagEquals', flag: 'compassionate_dungeon', value: true }], cost: { gold: 15, food: 10 } },
+    { id: 'standard', text: '상주 치료 계약과 보급을 제안한다 · 골드 25 / 식량 20', conditions: [{ type: 'flagEquals', flag: 'compassionate_dungeon', value: false }], cost: { gold: 25, food: 20 } },
   ],
   npc_informant: [
-    { id: 'discount', text: '정보망을 받아들인다 · 골드 20', conditions: [{ type: 'flagEquals', flag: 'intelligence_network_seed', value: true }], cost: { gold: 20 } },
-    { id: 'standard', text: '정보망을 받아들인다 · 골드 35', conditions: [{ type: 'flagEquals', flag: 'intelligence_network_seed', value: false }], cost: { gold: 35 } },
+    { id: 'discount', text: '기존 정보선을 인계받고 계약한다 · 골드 20', conditions: [{ type: 'flagEquals', flag: 'intelligence_network_seed', value: true }], cost: { gold: 20 } },
+    { id: 'standard', text: '새 정보망 구축을 정식 의뢰한다 · 골드 35', conditions: [{ type: 'flagEquals', flag: 'intelligence_network_seed', value: false }], cost: { gold: 35 } },
   ],
 }
 

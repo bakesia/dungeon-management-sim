@@ -1,49 +1,68 @@
+import { facilityDefinitions } from '../../content/facilities/facilities'
+import { resourceDefinitionById } from '../../content/resources/resources'
 import { tierDefinitions } from '../../content/tiers/tiers'
+import type { EffectDefinition, TierDefinition } from '../../types/content'
 import type { GameState } from '../../types/game'
 import { checkConditions } from '../conditions/checkConditions'
-import { applyEffect } from '../effects/applyEffects'
-import { applyEffects } from '../effects/applyEffects'
-import { resourceDefinitionById } from '../../content/resources/resources'
-import type { EffectDefinition } from '../../types/content'
+import { applyEffect, applyEffects } from '../effects/applyEffects'
 
-function formatPromotionRewards(effects: EffectDefinition[]): string {
-  return effects.flatMap((effect) => effect.type === 'addResource'
-    ? [`${resourceDefinitionById[effect.resourceId]?.name ?? effect.resourceId} +${effect.amount}`]
-    : []).join(' · ')
+function orderedTiers(): TierDefinition[] {
+  return [...tierDefinitions].sort((a, b) => a.level - b.level)
 }
 
-export function processProgression(state: GameState, now = new Date()): GameState {
-  if (state.status !== 'playing') return state
-  const orderedTiers = [...tierDefinitions].sort((a, b) => a.level - b.level)
-  let nextState = state
-  let currentIndex = orderedTiers.findIndex((tier) => tier.id === nextState.currentTierId)
-  if (currentIndex < 0) throw new Error(`Unknown currentTierId "${nextState.currentTierId}".`)
+export function getNextTier(state: GameState): TierDefinition | null {
+  const tiers = orderedTiers()
+  const currentIndex = tiers.findIndex((tier) => tier.id === state.currentTierId)
+  if (currentIndex < 0) throw new Error(`Unknown currentTierId "${state.currentTierId}".`)
+  return tiers[currentIndex + 1] ?? null
+}
 
-  while (currentIndex < orderedTiers.length - 1) {
-    const nextTier = orderedTiers[currentIndex + 1]
-    if (!nextTier || !checkConditions(nextState, nextTier.requirements)) break
+export function canPromoteDungeon(state: GameState): boolean {
+  const nextTier = getNextTier(state)
+  return state.status === 'playing' && Boolean(nextTier && checkConditions(state, nextTier.requirements))
+}
 
-    nextState = { ...nextState, currentTierId: nextTier.id }
-    nextState = applyEffects(nextState, nextTier.promotionRewards, now)
-    nextState = applyEffect(nextState, {
-      type: 'addLog',
-      category: 'progression',
-      message: `[던전 성장] 던전이 ${nextTier.name}(Tier ${nextTier.level})으로 성장했습니다. [성장 보너스: ${formatPromotionRewards(nextTier.promotionRewards)}]`,
-      presentation: 'typewriter',
-      sound: 'tier_up',
-      presentationGroupId: `tier-up-${state.day}`,
-      presentationSequence: 1,
-      presentationPriority: 90,
-    }, now)
-    currentIndex += 1
+function formatPromotionRewards(effects: EffectDefinition[]): string {
+  return effects.flatMap((effect) => {
+    if (effect.type === 'addResource') return [`${resourceDefinitionById[effect.resourceId]?.name ?? effect.resourceId} +${effect.amount}`]
+    if (effect.type === 'changeFame') return [`악명 +${effect.amount}`]
+    return []
+  }).join(' · ')
+}
 
-    if (currentIndex === orderedTiers.length - 1) {
-      nextState = { ...nextState, status: 'clear' }
-      break
-    }
-  }
+export function getNewlyUnlockedFacilityNames(fromTier: number, toTier: number): string[] {
+  return facilityDefinitions
+    .filter((facility) => facility.buildable && facility.requiredTier > fromTier && facility.requiredTier <= toTier)
+    .map((facility) => facility.name)
+}
 
+export function promoteDungeon(state: GameState, now = new Date()): GameState {
+  const nextTier = getNextTier(state)
+  if (!nextTier) throw new Error('이미 최종 Tier에 도달했습니다.')
+  if (!canPromoteDungeon(state)) throw new Error(`Tier ${nextTier.level} 승급 조건을 현재 충족하지 못했습니다.`)
+
+  const currentTier = tierDefinitions.find((tier) => tier.id === state.currentTierId)
+  const unlocked = getNewlyUnlockedFacilityNames(currentTier?.level ?? nextTier.level - 1, nextTier.level)
+  let nextState: GameState = { ...state, currentTierId: nextTier.id }
+  nextState = applyEffects(nextState, nextTier.promotionRewards, now)
+  nextState = applyEffect(nextState, {
+    type: 'addLog',
+    category: 'progression',
+    message: `[TIER UP]\n${currentTier?.name ?? '던전'} → ${nextTier.name}\n성장 보너스: ${formatPromotionRewards(nextTier.promotionRewards)}${unlocked.length > 0 ? `\n신규 시설: ${unlocked.join(', ')}` : ''}`,
+    presentation: 'typewriter',
+    sound: 'tier_up',
+    presentationGroupId: `tier-up-${state.day}-${nextTier.level}`,
+    presentationSequence: 1,
+    presentationPriority: 90,
+  }, now)
+
+  if (nextTier.level === orderedTiers().at(-1)?.level) nextState = { ...nextState, status: 'clear' }
   return nextState
+}
+
+/** DAY 처리에서는 승급하지 않는다. 기존 호출부를 위한 명시적 no-op 경계다. */
+export function processProgression(state: GameState): GameState {
+  return state
 }
 
 export function continueAfterClear(state: GameState, now = new Date()): GameState {

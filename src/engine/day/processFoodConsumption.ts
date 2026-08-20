@@ -15,7 +15,7 @@ export function calculateFoodConsumption(state: GameState): number {
   }, 0)
 }
 
-export function processFoodConsumption(state: GameState, now = new Date()): GameState {
+export function processFoodConsumption(state: GameState, now = new Date(), addSummaryLog = true): GameState {
   const requiredFood = calculateFoodConsumption(state)
   if (requiredFood === 0) return state
 
@@ -26,11 +26,11 @@ export function processFoodConsumption(state: GameState, now = new Date()): Game
   if (consumedFood > 0) {
     effects.push(
       { type: 'addResource', resourceId: RESOURCE_IDS.food, amount: -consumedFood },
-      {
+      ...(addSummaryLog ? [{
         type: 'addLog',
-        category: 'resource',
+        category: 'resource' as const,
         message: `주민들이 식량을 소비했습니다. [식량 -${consumedFood}]`,
-      },
+      } as EffectDefinition] : []),
     )
   }
 

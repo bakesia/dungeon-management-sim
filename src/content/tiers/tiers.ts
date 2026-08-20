@@ -37,7 +37,6 @@ export const tierDefinitions: TierDefinition[] = [
       { type: 'populationAtLeast', amount: 30 },
       { type: 'roomLevelCountAtLeast', minLevel: 3, amount: 4 },
       { type: 'defenseWinsAtLeast', amount: 7 },
-      { type: 'resourceAtLeast', resourceId: 'gold', amount: 250 },
     ],
     promotionRewards: [
       { type: 'addResource', resourceId: 'gold', amount: 80 },
@@ -53,8 +52,6 @@ export const tierDefinitions: TierDefinition[] = [
       { type: 'populationAtLeast', amount: 50 },
       { type: 'roomLevelCountAtLeast', minLevel: 3, amount: 8 },
       { type: 'defenseWinsAtLeast', amount: 12 },
-      { type: 'resourceAtLeast', resourceId: 'gold', amount: 500 },
-      { type: 'resourceAtLeast', resourceId: 'mana', amount: 300 },
     ],
     promotionRewards: [
       { type: 'addResource', resourceId: 'gold', amount: 120 },

@@ -1,52 +1,81 @@
 import { facilityDefinitionById } from '../../content/facilities/facilities'
 import { resourceDefinitionById } from '../../content/resources/resources'
-import type { EffectDefinition } from '../../types/content'
+import type { EffectDefinition, ResourceId } from '../../types/content'
 import type { GameState } from '../../types/game'
 import { applyEffects } from '../effects/applyEffects'
 import { calculateFacilityProductionMultiplier, getFacilityLevel } from '../population/assignWorkers'
 import { getRoomConditionEfficiency } from '../construction/roomCondition'
-import { getActiveArtifactModifiers } from '../inventory/inventory'
+import { getOwnedArtifacts } from '../inventory/inventory'
 
-function scaleEffect(effect: EffectDefinition, efficiency: number): EffectDefinition | null {
-  if (effect.type !== 'addResource') return efficiency > 0 ? effect : null
-  const amount = effect.amount >= 0
-    ? Math.floor(effect.amount * efficiency)
-    : Math.ceil(effect.amount * efficiency)
-  return amount === 0 ? null : { ...effect, amount }
+export interface ProductionSource {
+  label: string
+  resourceId: ResourceId
+  amount: number
+  sourceType: 'facility' | 'artifact'
 }
 
-export function processDailyProduction(state: GameState, now = new Date()): GameState {
-  return Object.values(state.dungeon.rooms).reduce((currentState, room) => {
+export interface DailyProductionEstimate {
+  effects: EffectDefinition[]
+  resources: Record<ResourceId, number>
+  sources: ProductionSource[]
+}
+
+function scaleResourceAmount(amount: number, efficiency: number): number {
+  return amount >= 0 ? Math.floor(amount * efficiency) : Math.ceil(amount * efficiency)
+}
+
+export function calculateDailyProduction(state: GameState, maintenanceMultiplier = state.maintenance.efficiencyMultiplier): DailyProductionEstimate {
+  const resources: Record<ResourceId, number> = {}
+  const sources: ProductionSource[] = []
+  const ownedArtifacts = getOwnedArtifacts(state)
+
+  for (const room of Object.values(state.dungeon.rooms)) {
     const definition = facilityDefinitionById[room.definitionId]
     const level = getFacilityLevel(room)
-    if (!definition || !level || level.dailyEffects.length === 0) return currentState
-
-    const efficiency = calculateFacilityProductionMultiplier(currentState, room)
+    if (!definition || !level) continue
+    const efficiency = calculateFacilityProductionMultiplier(state, room)
       * getRoomConditionEfficiency(room)
-      * currentState.maintenance.efficiencyMultiplier
-    const effects = level.dailyEffects
-      .map((effect) => scaleEffect(effect, efficiency))
-      .filter((effect): effect is EffectDefinition => effect !== null)
-    for (const modifier of getActiveArtifactModifiers(currentState)) {
-      if (modifier.type === 'productionFlatBonus' && definition.tags.includes(modifier.targetTag) && efficiency > 0) {
-        effects.push({ type: 'addResource', resourceId: modifier.resourceId, amount: modifier.amount })
+      * maintenanceMultiplier
+
+    for (const effect of level.dailyEffects) {
+      if (effect.type !== 'addResource') continue
+      const amount = scaleResourceAmount(effect.amount, efficiency)
+      if (amount === 0) continue
+      resources[effect.resourceId] = (resources[effect.resourceId] ?? 0) + amount
+      sources.push({ label: `${definition.name} Lv.${room.level}`, resourceId: effect.resourceId, amount, sourceType: 'facility' })
+    }
+
+    if (efficiency <= 0) continue
+    for (const artifact of ownedArtifacts) {
+      for (const modifier of artifact.modifiers ?? []) {
+        if (modifier.type !== 'productionFlatBonus' || !definition.tags.includes(modifier.targetTag)) continue
+        resources[modifier.resourceId] = (resources[modifier.resourceId] ?? 0) + modifier.amount
+        sources.push({ label: artifact.name, resourceId: modifier.resourceId, amount: modifier.amount, sourceType: 'artifact' })
       }
     }
-    if (effects.length === 0) return currentState
+  }
 
-    const resultText = effects.flatMap((effect) => {
-      if (effect.type !== 'addResource') return []
-      const resourceName = resourceDefinitionById[effect.resourceId]?.name ?? effect.resourceId
-      return [`${resourceName} ${effect.amount >= 0 ? '+' : ''}${effect.amount}`]
-    }).join(' · ')
+  const effects: EffectDefinition[] = Object.entries(resources)
+    .filter(([, amount]) => amount !== 0)
+    .map(([resourceId, amount]) => ({ type: 'addResource', resourceId, amount }))
+  return { effects, resources, sources }
+}
 
-    return applyEffects(currentState, [
-      ...effects,
-      {
-        type: 'addLog',
-        category: 'resource',
-        message: `${definition.name} 생산 완료. [${resultText}] 효율 ${Math.round(efficiency * 100)}%`,
-      },
-    ], now)
-  }, state)
+export function processDailyProduction(state: GameState, now = new Date(), addSummaryLog = true): GameState {
+  const estimate = calculateDailyProduction(state)
+  if (estimate.effects.length === 0) return state
+  const resultText = Object.entries(estimate.resources).map(([resourceId, amount]) => {
+    const name = resourceDefinitionById[resourceId]?.name ?? resourceId
+    return `${name} ${amount >= 0 ? '+' : ''}${amount}`
+  }).join(' · ')
+  const artifactText = [...new Set(estimate.sources.filter((source) => source.sourceType === 'artifact').map((source) => source.label))].join(', ')
+
+  return applyEffects(state, [
+    ...estimate.effects,
+    ...(addSummaryLog ? [{
+      type: 'addLog' as const,
+      category: 'resource' as const,
+      message: `[생산 요약] ${resultText}${artifactText ? ` · 유물 효과: ${artifactText}` : ''}`,
+    }] : []),
+  ], now)
 }

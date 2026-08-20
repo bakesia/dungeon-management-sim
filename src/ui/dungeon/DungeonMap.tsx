@@ -30,7 +30,9 @@ interface DungeonMapProps {
   onRepair: (instanceId: string) => boolean
   onDemolish: (instanceId: string) => boolean
   onOpenAssignment: (instanceId: string) => void
-  onOpenNpcMenu: () => void
+  onOpenInventory: () => void
+  onOpenStatistics: () => void
+  onOpenManagement: () => void
 }
 
 const statusNames: Record<DungeonTile['status'], string> = {
@@ -70,7 +72,9 @@ export function DungeonMap({
   onRepair,
   onDemolish,
   onOpenAssignment,
-  onOpenNpcMenu,
+  onOpenInventory,
+  onOpenStatistics,
+  onOpenManagement,
 }: DungeonMapProps) {
   const tiles = useMemo(
     () => Object.values(state.dungeon.tiles).sort((a, b) => a.coordinate.y - b.coordinate.y || a.coordinate.x - b.coordinate.x),
@@ -108,7 +112,7 @@ export function DungeonMap({
       <div className="panel-heading">
         <div><p className="eyebrow">FLOOR 01 · CENTRAL CAVERN</p><h2 id="dungeon-map-title">던전 지도</h2></div>
         <div className="panel-heading__actions">
-          <QuickAccess state={state} onOpenAll={onOpenNpcMenu} />
+          <QuickAccess state={state} onOpenInventory={onOpenInventory} onOpenStatistics={onOpenStatistics} onOpenManagement={onOpenManagement} />
           {buildFacility && (
             <div className="build-mode-banner"><span>건설 모드 · {buildFacility.name}</span><button type="button" onClick={onCancelBuild}>ESC 취소</button></div>
           )}
@@ -160,11 +164,13 @@ export function DungeonMap({
           {selectedRoom && selectedLevel && (
             <div className="facility-stats">
               <span>상태 · {selectedRoom.condition === 'damaged' ? '손상 (효과 50%)' : '정상'}</span>
-              <span>생산 · {describeEffects(selectedLevel.dailyEffects, selectedEfficiency)}</span>
+              <span>기본 생산 · {describeEffects(selectedLevel.dailyEffects)}</span>
+              <span>실제 예상 · {describeEffects(selectedLevel.dailyEffects, selectedEfficiency)} / DAY</span>
               <span>유지비 · 골드 {getRoomGoldMaintenance(selectedRoom)} / DAY{selectedLevel.maintenanceEffects?.length ? ` · ${describeEffects(selectedLevel.maintenanceEffects)}` : ''}</span>
               {selectedLevel.populationCapacity && <span>인구 수용 · +{selectedLevel.populationCapacity}</span>}
               {selectedLevel.defense && <span>방어력 · {selectedLevel.defense}</span>}
-              <span>가동 효율 · {Math.round(selectedEfficiency * 100)}%</span>
+              {Boolean(selectedLevel.staffSlots) && <span>현재 배치 · {getRoomAssignmentCount(selectedRoom)} / {selectedLevel.staffSlots}</span>}
+              <span>배치·종족·상태 보정 · {Math.round(selectedEfficiency * 100)}%</span>
               {capacityWarnings.map((warning) => <span className="capacity-warning" key={warning}>{warning}</span>)}
             </div>
           )}

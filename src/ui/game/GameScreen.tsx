@@ -17,6 +17,17 @@ import { SpecialVisitorModal } from '../npcs/SpecialVisitorModal'
 import { ResidentReplacementModal } from '../population/ResidentReplacementModal'
 import type { FeatureId } from '../../types/content'
 import type { MenuView } from '../menu/GameMenu'
+import { tierDefinitionById } from '../../content/tiers/tiers'
+import { getNewlyUnlockedFacilityNames, getNextTier } from '../../engine/day/processProgression'
+import { resourceDefinitionById } from '../../content/resources/resources'
+import { TierPromotionOverlay } from '../progression/TierPromotionOverlay'
+
+interface TierCelebration {
+  fromName: string
+  toName: string
+  tierLevel: number
+  summary: string[]
+}
 
 export function GameScreen() {
   const navigate = useNavigate()
@@ -40,6 +51,7 @@ export function GameScreen() {
   const recruitResident = useGameStore((store) => store.recruitResident)
   const performNpcService = useGameStore((store) => store.performNpcService)
   const repairWithBlacksmith = useGameStore((store) => store.repairWithBlacksmith)
+  const promoteDungeon = useGameStore((store) => store.promoteDungeon)
   const chooseEvent = useGameStore((store) => store.chooseEvent)
   const applyPendingInvasion = useGameStore((store) => store.applyPendingInvasion)
   const confirmPopulationReplacement = useGameStore((store) => store.confirmPopulationReplacement)
@@ -51,6 +63,7 @@ export function GameScreen() {
   const [saveStatus, setSaveStatus] = useState('')
   const [assignmentRoomId, setAssignmentRoomId] = useState<string | null>(null)
   const [preferences, setPreferences] = useState(loadGamePreferences)
+  const [tierCelebration, setTierCelebration] = useState<TierCelebration | null>(null)
   const warnedResolutionId = useRef<string | null>(null)
   const previousTierId = useRef<string | null>(null)
   const previousVisitorId = useRef<string | null>(null)
@@ -177,6 +190,26 @@ export function GameScreen() {
     setBuildIntent(nextIntent)
   }
 
+  const handlePromoteDungeon = () => {
+    const fromTier = tierDefinitionById[state.currentTierId]
+    const toTier = getNextTier(state)
+    if (!fromTier || !toTier || !promoteDungeon()) return false
+    const unlocked = getNewlyUnlockedFacilityNames(fromTier.level, toTier.level)
+    const rewardText = toTier.promotionRewards.flatMap((effect) => {
+      if (effect.type === 'addResource') return [`${resourceDefinitionById[effect.resourceId]?.name ?? effect.resourceId} +${effect.amount}`]
+      if (effect.type === 'changeFame') return [`악명 +${effect.amount}`]
+      return []
+    }).join(' · ')
+    setTierCelebration({
+      fromName: fromTier.name,
+      toName: toTier.name,
+      tierLevel: toTier.level,
+      summary: [rewardText && `성장 보너스 · ${rewardText}`, unlocked.length > 0 ? `신규 시설 · ${unlocked.join(', ')}` : '신규 시설 없음', '협력자 합류 조건이 현재 상태로 다시 평가됩니다.'].filter(Boolean),
+    })
+    setIsMenuOpen(false)
+    return true
+  }
+
   if (!isHydrated) {
     return <main className="game-loading"><p>던전 기록을 불러오는 중...</p></main>
   }
@@ -197,7 +230,9 @@ export function GameScreen() {
           onRepair={repairFacility}
           onDemolish={demolishFacility}
           onOpenAssignment={setAssignmentRoomId}
-          onOpenNpcMenu={() => openMenu('npcs')}
+          onOpenInventory={() => openMenu('inventory')}
+          onOpenStatistics={() => openMenu('statistics')}
+          onOpenManagement={() => openMenu('main')}
         />
         <GameLog
           state={state}
@@ -226,6 +261,7 @@ export function GameScreen() {
           onRecruit={recruitResident}
           onService={performNpcService}
           onBlacksmithRepair={repairWithBlacksmith}
+          onPromote={handlePromoteDungeon}
           initialView={menuView}
           initialNpcFeature={menuNpcFeature}
         />
@@ -245,6 +281,7 @@ export function GameScreen() {
       {!state.invasion.pendingResolution && !state.populationJoin.pending && visitorEvent && (
         <SpecialVisitorModal state={state} event={visitorEvent} onChoose={handleChooseEvent} />
       )}
+      {tierCelebration && <TierPromotionOverlay {...tierCelebration} onClose={() => setTierCelebration(null)} />}
     </main>
   )
 }
