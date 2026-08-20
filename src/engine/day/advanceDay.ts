@@ -10,6 +10,7 @@ import { processPopulationState } from './processPopulationState'
 import { processCoreRecovery } from './processCoreRecovery'
 import { processNpcRuntime } from '../npcs/npcServices'
 import { addDailyEconomySummary } from './dailyEconomy'
+import { getExcavationCapacity } from '../dungeon/excavation'
 
 export interface AdvanceDayContext {
   now?: Date
@@ -50,6 +51,9 @@ export function advanceDay(state: GameState, context: AdvanceDayContext = {}): G
   nextState = {
     ...nextState,
     day: nextState.day + 1,
+    excavation: {
+      actionsRemaining: getExcavationCapacity(),
+    },
     statistics: {
       ...nextState.statistics,
       totalDaysPlayed: nextState.statistics.totalDaysPlayed + 1,

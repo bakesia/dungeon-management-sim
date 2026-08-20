@@ -7,6 +7,9 @@ import { tierDefinitionById } from '../content/tiers/tiers'
 import { invaderDefinitionById } from '../content/invaders/invaders'
 import { gameRules } from '../content/gameRules'
 import { npcDefinitions } from '../content/npcs/npcs'
+import { discoveryDefinitionById } from '../content/discoveries/discoveries'
+import { createWorldSeed } from '../engine/world/worldGeneration'
+import { defaultRandomSource, type RandomSource } from '../engine/random'
 
 type UnknownRecord = Record<string, unknown>
 const isRecord = (value: unknown): value is UnknownRecord => typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -126,25 +129,100 @@ function normalizeRoom(instanceId: string, raw: UnknownRecord, normalizeAssignme
   }
 }
 
+function normalizeCoordinate(value: unknown, tileId: string): DungeonTile['coordinate'] {
+  if (!isRecord(value)
+    || !Number.isInteger(value.x)
+    || !Number.isInteger(value.y)
+    || (value.floor !== undefined && !Number.isInteger(value.floor))) {
+    throw new Error(`Invalid save: dungeon tile "${tileId}" has invalid coordinates.`)
+  }
+  return { x: value.x as number, y: value.y as number, floor: typeof value.floor === 'number' ? value.floor : 0 }
+}
+
+function normalizeTile(id: string, raw: unknown, saveVersion: number): DungeonTile {
+  if (!isRecord(raw)) throw new Error(`Invalid save: dungeon tile "${id}" is malformed.`)
+  const coordinate = normalizeCoordinate(raw.coordinate, id)
+  const facilityInstanceId = typeof raw.facilityInstanceId === 'string' ? raw.facilityInstanceId : undefined
+
+  if (saveVersion <= 10) {
+    if (typeof raw.status !== 'string') throw new Error(`Invalid save: legacy dungeon tile "${id}" has no status.`)
+    const isFloor = raw.status === 'empty' || raw.status === 'occupied'
+    if (!isFloor && raw.status !== 'diggable' && raw.status !== 'undiscovered') {
+      throw new Error(`Invalid save: dungeon tile "${id}" has unknown legacy status "${raw.status}".`)
+    }
+    return {
+      id,
+      coordinate,
+      terrain: isFloor ? 'floor' : 'rock',
+      revealed: raw.status !== 'undiscovered',
+      facilityInstanceId,
+    }
+  }
+
+  if ((raw.terrain !== 'rock' && raw.terrain !== 'floor') || typeof raw.revealed !== 'boolean') {
+    throw new Error(`Invalid save: dungeon tile "${id}" has invalid terrain or revealed state.`)
+  }
+  const discovery = isRecord(raw.discovery)
+    && typeof raw.discovery.discoveryId === 'string'
+    && raw.discovery.discoveryId in discoveryDefinitionById
+    && typeof raw.discovery.variant === 'number'
+    && typeof raw.discovery.resolved === 'boolean'
+      ? {
+          discoveryId: raw.discovery.discoveryId as NonNullable<DungeonTile['discovery']>['discoveryId'],
+          variant: raw.discovery.variant,
+          resolved: raw.discovery.resolved,
+        }
+      : undefined
+  if (raw.discovery !== undefined && !discovery) throw new Error(`Invalid save: dungeon tile "${id}" has malformed discovery state.`)
+  const persistentNode = isRecord(raw.persistentNode) && raw.persistentNode.type === 'gold_vein'
+    ? { type: 'gold_vein' as const }
+    : undefined
+  if (raw.persistentNode !== undefined && !persistentNode) throw new Error(`Invalid save: dungeon tile "${id}" has invalid persistent node.`)
+  if ((discovery || persistentNode || facilityInstanceId) && (raw.terrain !== 'floor' || !raw.revealed)) {
+    throw new Error(`Invalid save: dungeon tile "${id}" has content on unrevealed rock.`)
+  }
+  if (persistentNode && (!discovery || discoveryDefinitionById[discovery.discoveryId].persistentNodeType !== persistentNode.type)) {
+    throw new Error(`Invalid save: dungeon tile "${id}" has inconsistent persistent discovery state.`)
+  }
+  if (discovery && discoveryDefinitionById[discovery.discoveryId].resolution === 'persistent' && !persistentNode) {
+    throw new Error(`Invalid save: dungeon tile "${id}" is missing its persistent node.`)
+  }
+  return { id, coordinate, terrain: raw.terrain, revealed: raw.revealed, discovery, persistentNode, facilityInstanceId }
+}
+
 function normalizeDungeon(value: UnknownRecord, saveVersion: number, rawPopulation: unknown, population: PopulationGroup[]): GameState['dungeon'] {
   if (!isRecord(value.tiles)) throw new Error('Invalid save: dungeon tiles are malformed.')
   const normalizeAssignments = createAssignmentNormalizer(rawPopulation, population)
+  const tiles = Object.fromEntries(Object.entries(value.tiles).map(([id, raw]) => [id, normalizeTile(id, raw, saveVersion)]))
   if (saveVersion >= 2) {
     if (!isRecord(value.rooms)) throw new Error('Invalid save: dungeon rooms are malformed.')
     const rooms = Object.fromEntries(Object.entries(value.rooms).map(([id, raw]) => {
       if (!isRecord(raw)) throw new Error(`Invalid save: dungeon room "${id}" is malformed.`)
       return [id, normalizeRoom(id, raw, normalizeAssignments)]
     }))
-    return { tiles: value.tiles as unknown as GameState['dungeon']['tiles'], rooms }
+    Object.values(rooms).forEach((room) => {
+      const tile = tiles[room.tileId]
+      if (!tile) throw new Error(`Invalid save: room "${room.instanceId}" references missing tile "${room.tileId}".`)
+      tiles[room.tileId] = {
+        ...tile,
+        terrain: 'floor',
+        revealed: true,
+        discovery: saveVersion <= 10 ? undefined : tile.discovery,
+        persistentNode: saveVersion <= 10 ? undefined : tile.persistentNode,
+        facilityInstanceId: room.instanceId,
+      }
+    })
+    return { tiles, rooms }
   }
-  const tiles: Record<string, DungeonTile> = {}
   const rooms: Record<string, FacilityInstance> = {}
   Object.entries(value.tiles).forEach(([id, raw]) => {
-    if (!isRecord(raw) || !isRecord(raw.coordinate) || typeof raw.status !== 'string') throw new Error(`Invalid save: dungeon tile "${id}" is malformed.`)
+    if (!isRecord(raw)) throw new Error(`Invalid save: dungeon tile "${id}" is malformed.`)
     const facility = isRecord(raw.facility) ? raw.facility : null
     const instanceId = facility && typeof facility.instanceId === 'string' ? facility.instanceId : undefined
-    tiles[id] = { id, coordinate: raw.coordinate as unknown as DungeonTile['coordinate'], status: raw.status as DungeonTile['status'], facilityInstanceId: instanceId }
-    if (facility && instanceId) rooms[instanceId] = normalizeRoom(instanceId, facility, normalizeAssignments, id)
+    if (facility && instanceId) {
+      rooms[instanceId] = normalizeRoom(instanceId, facility, normalizeAssignments, id)
+      tiles[id] = { ...tiles[id]!, terrain: 'floor', revealed: true, facilityInstanceId: instanceId }
+    }
   })
   return { tiles, rooms }
 }
@@ -159,17 +237,17 @@ function removeDeprecatedFacilities(dungeon: GameState['dungeon']): GameState['d
   const rooms = Object.fromEntries(Object.entries(dungeon.rooms).filter(([, room]) => !removedInstanceIds.has(room.instanceId)))
   const tiles = Object.fromEntries(Object.entries(dungeon.tiles).map(([id, tile]) => [id,
     tile.facilityInstanceId && removedInstanceIds.has(tile.facilityInstanceId)
-      ? { ...tile, status: 'empty' as const, facilityInstanceId: undefined }
+      ? { ...tile, terrain: 'floor' as const, revealed: true, facilityInstanceId: undefined }
       : tile,
   ]))
   return { rooms, tiles }
 }
 
-export function migrateSaveData(value: unknown): GameState {
+export function migrateSaveData(value: unknown, randomSource: RandomSource = defaultRandomSource): GameState {
   if (!isRecord(value) || typeof value.saveVersion !== 'number') throw new Error('Invalid save: missing numeric saveVersion.')
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, SAVE_VERSION].includes(value.saveVersion)) throw new Error(`Unsupported saveVersion ${value.saveVersion}; expected 1 through ${SAVE_VERSION}.`)
+  if (!Number.isInteger(value.saveVersion) || value.saveVersion < 1 || value.saveVersion > SAVE_VERSION) throw new Error(`Unsupported saveVersion ${value.saveVersion}; expected 1 through ${SAVE_VERSION}.`)
   if (typeof value.day !== 'number' || !Array.isArray(value.population) || !isRecord(value.dungeon)) throw new Error('Invalid save: day, population, or dungeon state is malformed.')
-  const fallback = createInitialGameState()
+  const fallback = createInitialGameState(new Date(), { next: () => 0 })
   const population = normalizePopulation(value.population)
   const core = isRecord(value.core) ? value.core : {}
   const events = isRecord(value.events) ? value.events : {}
@@ -181,6 +259,24 @@ export function migrateSaveData(value: unknown): GameState {
   const metadata = isRecord(value.metadata) ? value.metadata : {}
   const intel = isRecord(invasion.intel) ? invasion.intel : {}
   const dungeon = removeDeprecatedFacilities(normalizeDungeon(value.dungeon, value.saveVersion, value.population, population))
+  const world = isRecord(value.world)
+    && typeof value.world.seed === 'string'
+    && value.world.seed.trim().length > 0
+    && Number.isInteger(value.world.generationVersion)
+    && (value.world.generationVersion as number) > 0
+    && (value.world.generationVersion as number) <= gameRules.world.generationVersion
+      ? { seed: value.world.seed, generationVersion: value.world.generationVersion as number }
+      : value.saveVersion <= 10
+        ? { seed: createWorldSeed(randomSource), generationVersion: gameRules.world.generationVersion }
+        : (() => { throw new Error('Invalid save: world seed or generation version is malformed.') })()
+  const rawExcavation = isRecord(value.excavation) ? value.excavation : {}
+  const excavation = {
+    actionsRemaining: value.saveVersion <= 10
+      ? gameRules.excavation.baseActionsPerDay
+      : typeof rawExcavation.actionsRemaining === 'number'
+        ? Math.max(0, Math.min(gameRules.excavation.baseActionsPerDay, Math.floor(rawExcavation.actionsRemaining)))
+        : gameRules.excavation.baseActionsPerDay,
+  }
   const currentTierId = typeof value.currentTierId === 'string' ? value.currentTierId : fallback.currentTierId
   const totalWins = typeof invasion.totalWins === 'number' ? invasion.totalWins : 0
   const totalLosses = typeof invasion.totalLosses === 'number' ? invasion.totalLosses : 0
@@ -191,6 +287,8 @@ export function migrateSaveData(value: unknown): GameState {
   return {
     ...fallback,
     saveVersion: SAVE_VERSION,
+    world,
+    excavation,
     day: value.day,
     resources: { ...fallback.resources, ...normalizeNumberRecord(value.resources) },
     population,

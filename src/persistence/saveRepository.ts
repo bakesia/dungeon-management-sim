@@ -51,7 +51,17 @@ class DexieSaveRepository implements SaveRepository {
     if (storedValue === undefined) return null
 
     // Early v0.1 builds stored GameState directly; current builds wrap it in a versioned SaveRecord.
-    return migrateSaveData(isSaveRecord(storedValue) ? storedValue.gameState : storedValue)
+    const rawState = isSaveRecord(storedValue) ? storedValue.gameState : storedValue
+    const migrated = migrateSaveData(rawState)
+    const rawSaveVersion = isSaveRecord(storedValue)
+      ? storedValue.gameState.saveVersion
+      : typeof rawState === 'object' && rawState !== null && 'saveVersion' in rawState
+        ? rawState.saveVersion
+        : undefined
+    if (!isSaveRecord(storedValue) || storedValue.saveVersion !== SAVE_VERSION || rawSaveVersion !== SAVE_VERSION) {
+      await this.save(migrated, slotId)
+    }
+    return migrated
   }
 }
 

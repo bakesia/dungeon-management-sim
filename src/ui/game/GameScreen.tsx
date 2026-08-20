@@ -40,7 +40,7 @@ export function GameScreen() {
   const lastActionError = useGameStore((store) => store.lastActionError)
   const advanceDay = useGameStore((store) => store.advanceDay)
   const saveGame = useGameStore((store) => store.saveGame)
-  const digTile = useGameStore((store) => store.digTile)
+  const excavateTile = useGameStore((store) => store.excavateTile)
   const buildFacility = useGameStore((store) => store.buildFacility)
   const upgradeFacility = useGameStore((store) => store.upgradeFacility)
   const repairFacility = useGameStore((store) => store.repairFacility)
@@ -146,10 +146,10 @@ export function GameScreen() {
     return built
   }
 
-  const performDig = (tileId: string) => {
-    const dug = digTile(tileId)
-    if (dug) soundManager.play('dig')
-    return dug
+  const performExcavation = (tileId: string) => {
+    const excavated = excavateTile(tileId)
+    if (excavated) soundManager.play('dig')
+    return excavated
   }
 
   const handleChooseEvent = (choiceId: string) => {
@@ -225,7 +225,7 @@ export function GameScreen() {
           actionError={lastActionError}
           onCancelBuild={() => setBuildIntent(emptyBuildIntent)}
           onOpenBuildMenu={openBuildMenu}
-          onDig={performDig}
+          onExcavate={performExcavation}
           onBuild={performBuild}
           onUpgrade={upgradeFacility}
           onRepair={repairFacility}

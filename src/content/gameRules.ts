@@ -7,6 +7,10 @@ export const gameRules = {
   },
   excavation: {
     cost: { [RESOURCE_IDS.material]: 10 } satisfies ResourceCost,
+    baseActionsPerDay: 2,
+  },
+  world: {
+    generationVersion: 1,
   },
   maintenance: {
     unpaidEfficiencyMultiplier: 0.75,

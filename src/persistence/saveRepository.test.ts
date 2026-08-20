@@ -6,6 +6,7 @@ import { buildFacility } from '../engine/construction/facilities'
 import { adjustResidentAssignment } from '../engine/population/assignWorkers'
 import { createInitialGameState } from '../engine/game/createInitialGameState'
 import type { SaveRecord } from '../types/save'
+import type { GameState } from '../types/game'
 
 describe('DexieSaveRepository', () => {
   it('writes a versioned autosave record and loads it from a new repository instance', async () => {
@@ -60,5 +61,46 @@ describe('DexieSaveRepository', () => {
     expect(loadedGame?.activeMercenaries[0]?.combatPower).toBe(25)
     expect(loadedGame?.timedModifiers[0]?.value).toBe(25)
     expect(loadedGame?.status).toBe('clear')
+  })
+
+  it('persists a generated world seed when a v0.1.14 record is loaded', async () => {
+    const { createSaveRepository } = await import('./saveRepository')
+    const { GameDatabase } = await import('./database')
+    const slotId = 'legacy-v10-seed-test'
+    const current = createInitialGameState()
+    const legacy = {
+      ...current,
+      saveVersion: 10,
+      world: undefined,
+      excavation: undefined,
+      dungeon: {
+        rooms: current.dungeon.rooms,
+        tiles: Object.fromEntries(Object.entries(current.dungeon.tiles).map(([id, tile]) => [id, {
+          id,
+          coordinate: tile.coordinate,
+          status: tile.facilityInstanceId ? 'occupied' : tile.terrain === 'floor' ? 'empty' : tile.revealed ? 'diggable' : 'undiscovered',
+          facilityInstanceId: tile.facilityInstanceId,
+        }])),
+      },
+    }
+    const database = new GameDatabase()
+    await database.saves.put({
+      slotId,
+      savedAt: Date.now(),
+      appVersion: '0.1.14',
+      saveVersion: 10,
+      gameState: legacy as unknown as GameState,
+    }, slotId)
+
+    const repository = createSaveRepository()
+    const firstLoad = await repository.load(slotId)
+    const persisted = await database.saves.get(slotId) as SaveRecord
+    const secondLoad = await repository.load(slotId)
+
+    expect(firstLoad?.world.seed).toBeTruthy()
+    expect(persisted.saveVersion).toBe(SAVE_VERSION)
+    expect(persisted.gameState.world.seed).toBe(firstLoad?.world.seed)
+    expect(secondLoad?.world.seed).toBe(firstLoad?.world.seed)
+    database.close()
   })
 })

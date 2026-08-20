@@ -6,6 +6,16 @@ export type EventId = string
 export type InvaderId = string
 export type NpcId = string
 export type ItemId = string
+export type DiscoveryId =
+  | 'empty'
+  | 'material_cache'
+  | 'cavern'
+  | 'loot'
+  | 'hazard'
+  | 'gold_vein'
+  | 'artifact'
+  | 'special_event'
+export type PersistentNodeType = 'gold_vein'
 export type FeatureId = 'shop' | 'blacksmith' | 'tavern' | 'mage' | 'healer' | 'informant'
 
 export type ResourceCost = Record<ResourceId, number>
@@ -95,6 +105,15 @@ export interface ItemDefinition {
   tags: string[]
   iconId: string
   modifiers?: ItemModifierDefinition[]
+}
+
+export interface DiscoveryDefinition {
+  id: DiscoveryId
+  name: string
+  description: string
+  resolution: 'none' | 'one_shot' | 'persistent'
+  persistentNodeType?: PersistentNodeType
+  generationWeight: number
 }
 
 export interface LootDropDefinition {

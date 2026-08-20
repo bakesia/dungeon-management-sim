@@ -141,9 +141,9 @@
 .dungeon-grid { --tile-size: clamp(48px, min(6.3vw, 7.2vh), 76px); position: relative; z-index: 1; display: grid; grid-template-columns: repeat(var(--map-columns), var(--tile-size)); gap: 5px; padding: 12px; }
 .dungeon-tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: var(--tile-size); height: var(--tile-size); min-width: 0; overflow: hidden; padding: 4px; border: 1px solid #262b2a; color: #4f5653; background: #111415; cursor: pointer; transition: border-color .15s ease, filter .15s ease, transform .15s ease; }
 .dungeon-tile:hover { filter: brightness(1.25); z-index: 2; }
-.dungeon-tile--undiscovered { color: #323735; background: repeating-linear-gradient(135deg, #0d1011 0 4px, #101314 4px 8px); border-color: #171b1b; }
-.dungeon-tile--diggable { color: #616a66; background: radial-gradient(circle at 30% 25%, #232827, #171a1b 70%); border-color: #303634; }
-.dungeon-tile--empty { color: #87918c; background: #1c2220; border-color: #4c5651; box-shadow: inset 0 0 18px rgba(0,0,0,.35); }
+.dungeon-tile--unrevealed-rock { color: #323735; background: repeating-linear-gradient(135deg, #0d1011 0 4px, #101314 4px 8px); border-color: #171b1b; }
+.dungeon-tile--excavatable-rock { color: #717c76; background: radial-gradient(circle at 30% 25%, #29302d, #171b1a 70%); border-color: #465049; }
+.dungeon-tile--revealed-floor { color: #87918c; background: #1c2220; border-color: #4c5651; box-shadow: inset 0 0 18px rgba(0,0,0,.35); }
 .dungeon-tile--occupied { color: #c5cbbd; background: linear-gradient(145deg, #2a322e, #1d2421); border-color: #687463; box-shadow: inset 0 0 20px rgba(0,0,0,.32); }
 .dungeon-tile.is-selected { border: 2px solid #c2ce8c; background-color: #303831; }
 .dungeon-tile.is-damaged { border-color: #a65e50; background: repeating-linear-gradient(135deg, #2a211f 0 5px, #211b1a 5px 10px); }
@@ -161,7 +161,13 @@
 .tile-inspector__title { display: flex; align-items: center; gap: 13px; }
 .status-gem { width: 28px; height: 28px; flex: 0 0 auto; border: 1px solid #59635d; background: #202624; transform: rotate(45deg); }
 .status-gem--occupied { background: #707d62; border-color: #9ba985; box-shadow: 0 0 12px rgba(174,187,130,.22); }
-.status-gem--diggable { background: #252b29; }
+.status-gem--excavatable-rock { background: #2b332f; border-color: #667168; }
+.status-gem--unrevealed-rock { background: #181c1b; border-color: #343a37; }
+.status-gem--revealed-floor { background: #35413b; border-color: #68766d; }
+.excavation-counter { display: block; margin-top: 4px; color: #b8c77f; font: 11px var(--mono); letter-spacing: .04em; }
+.discovery-label, .excavation-reason { display: block; margin-top: 7px; font: var(--font-size-ui-small) var(--mono); }
+.discovery-label { color: #c5ac6d; }
+.excavation-reason { color: #c98779; }
 .tile-inspector__title p { color: #e0e2dc; font-size: var(--font-size-ui-base); font-weight: 650; }
 .tile-inspector__title span:not(.status-gem):not(.game-icon) { display: block; margin-top: 6px; color: #929a96; font: var(--font-size-ui-small) var(--mono); }
 .tile-inspector__icon { filter: drop-shadow(2px 2px 0 #070909); }

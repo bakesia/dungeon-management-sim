@@ -9,6 +9,8 @@ import type {
   EffectDefinition,
   ItemId,
   ResourceCost,
+  DiscoveryId,
+  PersistentNodeType,
 } from './content'
 
 export interface Coordinate {
@@ -17,7 +19,7 @@ export interface Coordinate {
   floor?: number
 }
 
-export type TileStatus = 'undiscovered' | 'diggable' | 'empty' | 'occupied'
+export type TileTerrain = 'rock' | 'floor'
 export type RoomCondition = 'normal' | 'damaged'
 
 export interface PopulationAssignment {
@@ -38,7 +40,16 @@ export interface FacilityInstance {
 export interface DungeonTile {
   id: string
   coordinate: Coordinate
-  status: TileStatus
+  terrain: TileTerrain
+  revealed: boolean
+  discovery?: {
+    discoveryId: DiscoveryId
+    variant: number
+    resolved: boolean
+  }
+  persistentNode?: {
+    type: PersistentNodeType
+  }
   facilityInstanceId?: string
 }
 
@@ -150,6 +161,13 @@ export type GameStatus = 'playing' | 'gameOver' | 'clear'
 
 export interface GameState {
   saveVersion: number
+  world: {
+    seed: string
+    generationVersion: number
+  }
+  excavation: {
+    actionsRemaining: number
+  }
   day: number
   resources: Record<ResourceId, number>
   population: PopulationGroup[]

@@ -17,7 +17,7 @@ describe('facility construction', () => {
     expect(upgraded.dungeon.rooms[instanceId!]?.level).toBe(2)
 
     const demolished = demolishFacility(upgraded, instanceId!)
-    expect(demolished.dungeon.tiles[tile]?.status).toBe('empty')
+    expect(demolished.dungeon.tiles[tile]).toMatchObject({ terrain: 'floor', revealed: true, facilityInstanceId: undefined })
     expect(demolished.dungeon.rooms[instanceId!]).toBeUndefined()
     expect(demolished.resources.material).toBe(67)
     expect(demolished.logs.at(-1)?.message).toContain('75%')

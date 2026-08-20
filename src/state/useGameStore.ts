@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { buildFacility as runBuildFacility, demolishFacility as runDemolishFacility, upgradeFacility as runUpgradeFacility } from '../engine/construction/facilities'
 import { advanceDay as runAdvanceDay } from '../engine/day/advanceDay'
-import { digTile as runDigTile } from '../engine/dungeon/digTile'
+import { excavateTile as runExcavateTile } from '../engine/dungeon/excavation'
 import { chooseEvent as runChooseEvent } from '../engine/events/processEvents'
 import { createInitialGameState } from '../engine/game/createInitialGameState'
 import { adjustResidentAssignment as runAdjustResidentAssignment } from '../engine/population/assignWorkers'
@@ -23,7 +23,7 @@ interface GameStore {
   loadAutosave(): Promise<boolean>
   advanceDay(): Promise<void>
   saveGame(): Promise<boolean>
-  digTile(tileId: string): boolean
+  excavateTile(tileId: string): boolean
   buildFacility(facilityId: string, tileId: string): boolean
   upgradeFacility(instanceId: string): boolean
   demolishFacility(instanceId: string): boolean
@@ -113,9 +113,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  digTile: (tileId) => {
+  excavateTile: (tileId) => {
     try {
-      set({ game: runDigTile(get().game, tileId), lastActionError: null })
+      set({ game: runExcavateTile(get().game, tileId), lastActionError: null })
       return true
     } catch (error) {
       set({ lastActionError: error instanceof Error ? error.message : '굴착에 실패했습니다.' })

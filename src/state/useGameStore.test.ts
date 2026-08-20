@@ -10,14 +10,14 @@ describe('useGameStore', () => {
   it('routes management actions through the dungeon engines', () => {
     useGameStore.getState().startNewGame()
 
-    expect(useGameStore.getState().digTile('0:0:-2')).toBe(true)
+    expect(useGameStore.getState().excavateTile('0:0:-2')).toBe(true)
     expect(useGameStore.getState().buildFacility('fungus_farm', '0:0:-1')).toBe(true)
     const farmId = useGameStore.getState().game.dungeon.tiles['0:0:-1']?.facilityInstanceId
     expect(useGameStore.getState().adjustResident(farmId!, 'goblin', 1)).toBe(true)
     expect(useGameStore.getState().upgradeFacility(farmId!)).toBe(true)
     expect(useGameStore.getState().demolishFacility(farmId!)).toBe(true)
 
-    expect(useGameStore.getState().game.dungeon.tiles['0:0:-1']?.status).toBe('empty')
+    expect(useGameStore.getState().game.dungeon.tiles['0:0:-1']).toMatchObject({ terrain: 'floor', revealed: true, facilityInstanceId: undefined })
     expect(useGameStore.getState().lastActionError).toBeNull()
   })
 

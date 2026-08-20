@@ -6,7 +6,7 @@ import { tierDefinitionById } from '../../content/tiers/tiers'
 import { canUpgradeFacility } from '../../engine/construction/facilities'
 import { canRepairFacility, getRepairCost } from '../../engine/construction/repairFacility'
 import { getRoomConditionEfficiency } from '../../engine/construction/roomCondition'
-import { canDigTile } from '../../engine/dungeon/digTile'
+import { canExcavate, getExcavationCapacity, getTileMapState, type TileMapState } from '../../engine/dungeon/excavation'
 import { calculateFacilityProductionMultiplier, getFacilityLevel, getRoomAssignmentCount } from '../../engine/population/assignWorkers'
 import { formatResourceCost } from '../../engine/resources/resourceCosts'
 import type { EffectDefinition } from '../../types/content'
@@ -18,6 +18,7 @@ import { RaceIcon } from '../population/RaceIcon'
 import { raceDefinitionById } from '../../content/races/races'
 import { QuickAccess } from '../game/QuickAccess'
 import { getRoomDisplayName } from '../facilities/roomDisplay'
+import { discoveryDefinitionById } from '../../content/discoveries/discoveries'
 
 interface DungeonMapProps {
   state: GameState
@@ -25,7 +26,7 @@ interface DungeonMapProps {
   actionError: string | null
   onCancelBuild: () => void
   onOpenBuildMenu: (tileId?: string) => void
-  onDig: (tileId: string) => boolean
+  onExcavate: (tileId: string) => boolean
   onBuild: (facilityId: string, tileId: string) => boolean
   onUpgrade: (instanceId: string) => boolean
   onRepair: (instanceId: string) => boolean
@@ -36,18 +37,25 @@ interface DungeonMapProps {
   onOpenNpcManagement: () => void
 }
 
-const statusNames: Record<DungeonTile['status'], string> = {
-  undiscovered: '미확인 구역', diggable: '굴착 가능한 암반', empty: '빈 공간', occupied: '시설 구역',
+const statusNames: Record<TileMapState, string> = {
+  'unrevealed-rock': '미공개 암반',
+  'excavatable-rock': '굴착 가능한 암반',
+  'revealed-floor': '공개된 빈 바닥',
+  occupied: '시설 구역',
 }
 
 function getRoom(state: GameState, tile: DungeonTile): FacilityInstance | undefined {
   return tile.facilityInstanceId ? state.dungeon.rooms[tile.facilityInstanceId] : undefined
 }
 
-function getTileLabel(tile: DungeonTile): string {
-  if (tile.status === 'empty') return '빈 공간'
-  if (tile.status === 'diggable') return '암반'
+function getTileLabel(mapState: TileMapState): string {
+  if (mapState === 'revealed-floor') return '빈 공간'
+  if (mapState === 'excavatable-rock') return '암반'
   return '·'
+}
+
+function isBuildableFloor(tile: DungeonTile): boolean {
+  return tile.terrain === 'floor' && tile.revealed && !tile.facilityInstanceId
 }
 
 function describeEffects(effects: EffectDefinition[], efficiency = 1): string {
@@ -67,7 +75,7 @@ export function DungeonMap({
   actionError,
   onCancelBuild,
   onOpenBuildMenu,
-  onDig,
+  onExcavate,
   onBuild,
   onUpgrade,
   onRepair,
@@ -86,6 +94,8 @@ export function DungeonMap({
   const minX = Math.min(...tiles.map((tile) => tile.coordinate.x))
   const maxX = Math.max(...tiles.map((tile) => tile.coordinate.x))
   const selectedRoom = selectedTile ? getRoom(state, selectedTile) : undefined
+  const selectedMapState = selectedTile ? getTileMapState(state, selectedTile) : undefined
+  const selectedExcavationCheck = selectedTile ? canExcavate(state, selectedTile.id) : undefined
   const selectedFacility = selectedRoom ? facilityDefinitionById[selectedRoom.definitionId] : undefined
   const selectedLevel = selectedRoom ? getFacilityLevel(selectedRoom) : undefined
   const buildFacility = buildModeFacilityId ? facilityDefinitionById[buildModeFacilityId] : undefined
@@ -105,13 +115,13 @@ export function DungeonMap({
 
   const selectTile = (tile: DungeonTile) => {
     setSelectedTileId(tile.id)
-    if (buildModeFacilityId && tile.status === 'empty' && onBuild(buildModeFacilityId, tile.id)) onCancelBuild()
+    if (buildModeFacilityId && isBuildableFloor(tile) && onBuild(buildModeFacilityId, tile.id)) onCancelBuild()
   }
 
   return (
     <section className="dungeon-panel" aria-labelledby="dungeon-map-title">
       <div className="panel-heading">
-        <div><p className="eyebrow">FLOOR 01 · CENTRAL CAVERN</p><h2 id="dungeon-map-title">던전 지도</h2></div>
+        <div><p className="eyebrow">FLOOR 01 · CENTRAL CAVERN</p><h2 id="dungeon-map-title">던전 지도</h2><span className="excavation-counter">굴착 {state.excavation.actionsRemaining} / {getExcavationCapacity()}</span></div>
         <div className="panel-heading__actions">
           <QuickAccess state={state} onOpenInventory={onOpenInventory} onOpenStatistics={onOpenStatistics} onOpenNpcManagement={onOpenNpcManagement} />
           {buildFacility && (
@@ -127,21 +137,22 @@ export function DungeonMap({
             const room = getRoom(state, tile)
             const facility = room ? facilityDefinitionById[room.definitionId] : undefined
             const facilityName = room ? getRoomDisplayName(state, room) : undefined
-            const isBuildTarget = Boolean(buildModeFacilityId && tile.status === 'empty')
+            const mapState = getTileMapState(state, tile)
+            const isBuildTarget = Boolean(buildModeFacilityId && isBuildableFloor(tile))
             return (
               <button
-                className={`dungeon-tile dungeon-tile--${tile.status}${room?.condition === 'damaged' ? ' is-damaged' : ''}${isSelected ? ' is-selected' : ''}${isBuildTarget ? ' is-build-target' : ''}`}
+                className={`dungeon-tile dungeon-tile--${mapState}${room?.condition === 'damaged' ? ' is-damaged' : ''}${isSelected ? ' is-selected' : ''}${isBuildTarget ? ' is-build-target' : ''}`}
                 type="button"
                 key={tile.id}
                 onClick={() => selectTile(tile)}
                 aria-pressed={isSelected}
-                aria-label={`${tile.coordinate.x}, ${tile.coordinate.y}: ${facilityName ?? statusNames[tile.status]}`}
-                title={facilityName ?? statusNames[tile.status]}
+                aria-label={`${tile.coordinate.x}, ${tile.coordinate.y}: ${facilityName ?? statusNames[mapState]}`}
+                title={facilityName ?? statusNames[mapState]}
               >
                 {facility && room ? <>
                   <GameIcon iconId={facility.iconId} size={38} />
                   {facility.category !== 'core' && <span className="dungeon-tile__level">LV.{room.level}</span>}
-                </> : <span className="dungeon-tile__name">{getTileLabel(tile)}</span>}
+                </> : <span className="dungeon-tile__name">{getTileLabel(mapState)}</span>}
                 {room?.condition === 'damaged' && <span className="dungeon-tile__condition">손상</span>}
               </button>
             )
@@ -154,15 +165,17 @@ export function DungeonMap({
         <div className="tile-inspector__title">
           {selectedFacility
             ? <GameIcon iconId={selectedFacility.iconId} label={selectedFacility.name} size={42} className="tile-inspector__icon" />
-            : <span className={`status-gem status-gem--${selectedTile.status}`} />}
+            : <span className={`status-gem status-gem--${selectedMapState}`} />}
           <div>
-            <p>{selectedRoom ? getRoomDisplayName(state, selectedRoom) : selectedFacility?.name ?? statusNames[selectedTile.status]}{selectedRoom ? ` · Lv.${selectedRoom.level}` : ''}</p>
+            <p>{selectedRoom ? getRoomDisplayName(state, selectedRoom) : selectedFacility?.name ?? (selectedMapState ? statusNames[selectedMapState] : '알 수 없는 타일')}{selectedRoom ? ` · Lv.${selectedRoom.level}` : ''}</p>
             <span>좌표 {selectedTile.coordinate.x}, {selectedTile.coordinate.y}</span>
           </div>
         </div>
         <div className="tile-inspector__content">
-          <p>{selectedFacility?.description ?? (selectedTile.status === 'diggable' ? '단단한 암반 너머로 확장할 수 있습니다.' : selectedTile.status === 'empty' ? '건설 메뉴에서 시설을 선택한 뒤 이 공간을 클릭하십시오.' : '아직 내부를 확인할 수 없는 구역입니다.')}</p>
-          {selectedTile.status === 'diggable' && <span className="cost-label">굴착 비용 · {formatResourceCost(gameRules.excavation.cost)}</span>}
+          <p>{selectedFacility?.description ?? (selectedMapState === 'excavatable-rock' ? '공개된 바닥과 연결된 암반입니다. 굴착 명령으로 공간을 확보할 수 있습니다.' : selectedMapState === 'revealed-floor' ? '건설 메뉴에서 시설을 선택한 뒤 이 공간을 클릭하십시오.' : '아직 접근 경로가 확보되지 않은 암반입니다.')}</p>
+          {selectedTile.terrain === 'rock' && <span className="cost-label">굴착 비용 · {formatResourceCost(gameRules.excavation.cost)} · 오늘 남은 굴착 {state.excavation.actionsRemaining}</span>}
+          {selectedTile.discovery && selectedTile.discovery.discoveryId !== 'empty' && <span className="discovery-label">발견 · {discoveryDefinitionById[selectedTile.discovery.discoveryId].name}{selectedTile.persistentNode ? ' · 영구 노드' : ' · 해결됨'}</span>}
+          {selectedTile.terrain === 'rock' && !selectedExcavationCheck?.allowed && <span className="excavation-reason">{selectedExcavationCheck?.reason}</span>}
           {selectedRoom && selectedLevel && (
             <div className="facility-stats">
               <span>상태 · {selectedRoom.condition === 'damaged' ? '손상 (효과 50%)' : '정상'}</span>
@@ -194,10 +207,10 @@ export function DungeonMap({
           {actionError && <span className="action-error">{actionError}</span>}
         </div>
         <div className="inspector-actions">
-          {selectedTile.status === 'diggable' && (
-            <button className="primary-button" type="button" disabled={!canDigTile(state, selectedTile.id).allowed} onClick={() => onDig(selectedTile.id)}>굴착</button>
+          {selectedTile.terrain === 'rock' && (
+            <button className="primary-button" type="button" disabled={!selectedExcavationCheck?.allowed} onClick={() => onExcavate(selectedTile.id)}>굴착</button>
           )}
-          {selectedTile.status === 'empty' && <button className="primary-button" type="button" onClick={() => onOpenBuildMenu(selectedTile.id)}>건설 메뉴 열기</button>}
+          {isBuildableFloor(selectedTile) && <button className="primary-button" type="button" onClick={() => onOpenBuildMenu(selectedTile.id)}>건설 메뉴 열기</button>}
           {selectedRoom && selectedFacility?.buildable && (
             <>
               {selectedRoom.condition === 'damaged' && (

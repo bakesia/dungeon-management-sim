@@ -10,6 +10,8 @@ import { resourceDefinitions } from './resources/resources'
 import { tierDefinitions } from './tiers/tiers'
 import { gameIconDefinitionById } from './icons/gameIcons'
 import { itemDefinitions } from './items/items'
+import { discoveryDefinitions } from './discoveries/discoveries'
+import { gameRules } from './gameRules'
 
 function findDuplicateIds(label: string, ids: string[]): string[] {
   const seen = new Set<string>()
@@ -38,6 +40,7 @@ export function validateContent(): void {
     ...findDuplicateIds('tier', tierDefinitions.map((item) => item.id)),
     ...findDuplicateIds('tier level', tierDefinitions.map((item) => String(item.level))),
     ...findDuplicateIds('invader', invaderDefinitions.map((item) => item.id)),
+    ...findDuplicateIds('discovery', discoveryDefinitions.map((item) => item.id)),
     ...findDuplicateIds('content icon', [
       ...resourceDefinitions.map((item) => item.iconId),
       ...facilityDefinitions.map((item) => item.iconId),
@@ -50,6 +53,7 @@ export function validateContent(): void {
   const itemIds = new Set(itemDefinitions.map((item) => item.id))
   const facilityIds = new Set(facilityDefinitions.map((item) => item.id))
   const tierLevels = new Set(tierDefinitions.map((item) => item.level))
+  const persistentNodeTypes = new Set(['gold_vein'])
   const definedFlags = new Set(
     eventDefinitions.flatMap((event) => event.choices.flatMap((choice) =>
       choice.effects.flatMap((effect) => effect.type === 'setFlag' ? [effect.flag] : []),
@@ -164,6 +168,22 @@ export function validateContent(): void {
         }
       })
     })
+  })
+
+  if (!Number.isInteger(gameRules.world.generationVersion) || gameRules.world.generationVersion <= 0) {
+    errors.push(`Invalid worldGenerationVersion "${gameRules.world.generationVersion}".`)
+  }
+  discoveryDefinitions.forEach((discovery) => {
+    if (!Number.isFinite(discovery.generationWeight) || discovery.generationWeight <= 0) {
+      errors.push(`Discovery "${discovery.id}" has invalid generationWeight.`)
+    }
+    if (discovery.resolution === 'persistent') {
+      if (!discovery.persistentNodeType || !persistentNodeTypes.has(discovery.persistentNodeType)) {
+        errors.push(`Discovery "${discovery.id}" has invalid persistent node.`)
+      }
+    } else if (discovery.persistentNodeType) {
+      errors.push(`Non-persistent discovery "${discovery.id}" must not define a persistent node.`)
+    }
   })
 
   tierDefinitions.forEach((tier) => {

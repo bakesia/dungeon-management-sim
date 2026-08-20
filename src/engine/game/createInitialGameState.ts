@@ -6,6 +6,9 @@ import {
 } from '../../content/initialGame'
 import { resourceDefinitions } from '../../content/resources/resources'
 import type { DungeonTile, FacilityInstance, GameState } from '../../types/game'
+import { gameRules } from '../../content/gameRules'
+import { defaultRandomSource, type RandomSource } from '../random'
+import { createWorldSeed } from '../world/worldGeneration'
 
 export const tileId = (x: number, y: number, floor = 0) => `${floor}:${x}:${y}`
 
@@ -31,7 +34,8 @@ function createInitialDungeon(): GameState['dungeon'] {
       tiles[id] = {
         id,
         coordinate: { x, y, floor: 0 },
-        status: Math.abs(x) + Math.abs(y) <= 2 ? 'diggable' : 'undiscovered',
+        terrain: 'rock',
+        revealed: Math.abs(x) + Math.abs(y) <= 2,
       }
     }
   }
@@ -43,7 +47,8 @@ function createInitialDungeon(): GameState['dungeon'] {
     tiles[id] = {
       id,
       coordinate: { x: placement.x, y: placement.y, floor: 0 },
-      status: 'occupied',
+      terrain: 'floor',
+      revealed: true,
       facilityInstanceId: room.instanceId,
     }
   })
@@ -53,18 +58,26 @@ function createInitialDungeon(): GameState['dungeon'] {
     tiles[id] = {
       id,
       coordinate: { ...coordinate, floor: 0 },
-      status: 'empty',
+      terrain: 'floor',
+      revealed: true,
     }
   })
 
   return { tiles, rooms }
 }
 
-export function createInitialGameState(now = new Date()): GameState {
+export function createInitialGameState(now = new Date(), randomSource: RandomSource = defaultRandomSource): GameState {
   const timestamp = now.toISOString()
 
   return {
     saveVersion: SAVE_VERSION,
+    world: {
+      seed: createWorldSeed(randomSource),
+      generationVersion: gameRules.world.generationVersion,
+    },
+    excavation: {
+      actionsRemaining: gameRules.excavation.baseActionsPerDay,
+    },
     day: 1,
     resources: Object.fromEntries(
       resourceDefinitions.map((resource) => [resource.id, resource.initialAmount]),

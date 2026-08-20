@@ -24,7 +24,7 @@ export function canBuildFacility(state: GameState, facilityId: FacilityId, targe
   if (!definition.buildable) return { allowed: false, reason: `${definition.name}은 건설할 수 없습니다.` }
   const currentTier = tierDefinitionById[state.currentTierId]?.level ?? 1
   if (currentTier < definition.requiredTier) return { allowed: false, reason: `Tier ${definition.requiredTier}에서 해금되는 시설입니다.` }
-  if (!tile || tile.status !== 'empty') return { allowed: false, reason: '빈 공간에만 시설을 건설할 수 있습니다.' }
+  if (!tile || tile.terrain !== 'floor' || !tile.revealed || tile.facilityInstanceId) return { allowed: false, reason: '공개된 빈 바닥에만 시설을 건설할 수 있습니다.' }
   if (!checkConditions(state, definition.requirements)) return { allowed: false, reason: `${definition.name}의 건설 조건을 충족하지 못했습니다.` }
   if (!canAfford(state, definition.buildCost)) return { allowed: false, reason: `건설 비용이 부족합니다: ${formatResourceCost(definition.buildCost)}` }
   return { allowed: true }
@@ -55,7 +55,7 @@ export function buildFacility(state: GameState, facilityId: FacilityId, targetTi
     dungeon: {
       tiles: {
         ...nextState.dungeon.tiles,
-        [targetTileId]: { ...tile, status: 'occupied', facilityInstanceId: instanceId },
+        [targetTileId]: { ...tile, facilityInstanceId: instanceId },
       },
       rooms: { ...nextState.dungeon.rooms, [instanceId]: room },
     },
@@ -129,7 +129,7 @@ export function demolishFacility(state: GameState, instanceId: string, now = new
       rooms,
       tiles: {
         ...refundedState.dungeon.tiles,
-        [room.tileId]: { ...tile, status: 'empty', facilityInstanceId: undefined },
+        [room.tileId]: { ...tile, facilityInstanceId: undefined },
       },
     },
   }
