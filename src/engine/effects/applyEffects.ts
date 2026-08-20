@@ -6,6 +6,10 @@ import { defaultRandomSource } from '../random'
 import { previewResourceChange } from '../resources/resourceCapacity'
 import { resourceDefinitionById } from '../../content/resources/resources'
 import { updateNpcEligibility } from '../npcs/npcEligibility'
+import { addItem, removeItem } from '../inventory/inventory'
+import { itemDefinitionById } from '../../content/items/items'
+import { queuePopulationOffer } from '../population/populationOffer'
+import { npcDefinitionById } from '../../content/npcs/npcs'
 
 function reconcileResidentAssignments(state: GameState, population: PopulationGroup[]): GameState['dungeon'] {
   const remaining = new Map(population.map((group) => [group.raceId, group.count]))
@@ -124,14 +128,7 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
 
   if (effect.type === 'offerPopulationJoin') {
     if (effect.amount <= 0) return state
-    if (state.populationJoin.pending) throw new Error('다른 주민 합류 결정이 진행 중입니다.')
-    const availableSpace = getPopulationSpace(state)
-    if (availableSpace >= effect.amount) return applyEffect(state, { type: 'addPopulation', raceId: effect.raceId, amount: effect.amount }, now)
-    return {
-      ...state,
-      populationJoin: { pending: { raceId: effect.raceId, amount: effect.amount } },
-      metadata: { ...state.metadata, updatedAt },
-    }
+    return queuePopulationOffer(state, { incoming: [{ raceId: effect.raceId, count: effect.amount }], source: 'event' }, now)
   }
 
   if (effect.type === 'removePopulation') {
@@ -203,7 +200,7 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
 
   if (effect.type === 'joinNpc') {
     const current = state.npcs[effect.npcId]
-    return {
+    const joinedState: GameState = {
       ...state,
       npcs: {
         ...state.npcs,
@@ -220,6 +217,8 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
       },
       metadata: { ...state.metadata, updatedAt },
     }
+    const npc = npcDefinitionById[effect.npcId]
+    return npc ? applyEffect(joinedState, { type: 'addLog', category: 'progression', presentation: 'typewriter', sound: 'event_positive', message: `[협력자 합류] ${npc.displayName}\n“${npc.joinLine}”\n${npc.serviceSummary}` }, now) : joinedState
   }
 
   if (effect.type === 'scheduleNpcRetry') {
@@ -275,6 +274,20 @@ export function applyEffect(state: GameState, effect: EffectDefinition, now = ne
       invasion: { ...state.invasion, fame: Math.max(0, state.invasion.fame + effect.amount) },
       metadata: { ...state.metadata, updatedAt },
     })
+  }
+
+  if (effect.type === 'addItem' || effect.type === 'removeItem') {
+    const nextState = effect.type === 'addItem'
+      ? addItem(state, effect.itemId, effect.quantity)
+      : removeItem(state, effect.itemId, effect.quantity)
+    const item = itemDefinitionById[effect.itemId]
+    return applyEffect(nextState, {
+      type: 'addLog',
+      category: effect.type === 'addItem' && item?.category === 'artifact' ? 'progression' : 'resource',
+      message: `[${item?.category === 'artifact' ? '유물' : '아이템'}] ${item?.name ?? effect.itemId} ${effect.type === 'addItem' ? '+' : '-'}${effect.quantity}`,
+      presentation: item?.category === 'artifact' ? 'typewriter' : 'instant',
+      sound: item?.category === 'artifact' ? 'event_positive' : undefined,
+    }, now)
   }
 
   return {

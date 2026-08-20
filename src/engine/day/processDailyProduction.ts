@@ -5,6 +5,7 @@ import type { GameState } from '../../types/game'
 import { applyEffects } from '../effects/applyEffects'
 import { calculateFacilityProductionMultiplier, getFacilityLevel } from '../population/assignWorkers'
 import { getRoomConditionEfficiency } from '../construction/roomCondition'
+import { getActiveArtifactModifiers } from '../inventory/inventory'
 
 function scaleEffect(effect: EffectDefinition, efficiency: number): EffectDefinition | null {
   if (effect.type !== 'addResource') return efficiency > 0 ? effect : null
@@ -26,6 +27,11 @@ export function processDailyProduction(state: GameState, now = new Date()): Game
     const effects = level.dailyEffects
       .map((effect) => scaleEffect(effect, efficiency))
       .filter((effect): effect is EffectDefinition => effect !== null)
+    for (const modifier of getActiveArtifactModifiers(currentState)) {
+      if (modifier.type === 'productionFlatBonus' && definition.tags.includes(modifier.targetTag) && efficiency > 0) {
+        effects.push({ type: 'addResource', resourceId: modifier.resourceId, amount: modifier.amount })
+      }
+    }
     if (effects.length === 0) return currentState
 
     const resultText = effects.flatMap((effect) => {

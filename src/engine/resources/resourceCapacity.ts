@@ -2,6 +2,7 @@ import { facilityDefinitionById } from '../../content/facilities/facilities'
 import { resourceDefinitionById, resourceDefinitions } from '../../content/resources/resources'
 import type { EffectDefinition, ResourceId } from '../../types/content'
 import type { GameState } from '../../types/game'
+import { getActiveArtifactModifiers } from '../inventory/inventory'
 
 export interface ResourceChangePreview {
   resourceId: ResourceId
@@ -17,10 +18,11 @@ export function getResourceCapacity(state: GameState, resourceId: ResourceId): n
   const definition = resourceDefinitionById[resourceId]
   if (!definition) throw new Error(`Unknown resourceId "${resourceId}" requested from resource capacity.`)
 
-  return Object.values(state.dungeon.rooms).reduce((capacity, room) => {
+  const facilityCapacity = Object.values(state.dungeon.rooms).reduce((capacity, room) => {
     const level = facilityDefinitionById[room.definitionId]?.levels.find((item) => item.level === room.level)
     return capacity + (level?.storageCapacity?.[resourceId] ?? 0)
   }, definition.baseCapacity)
+  return getActiveArtifactModifiers(state).reduce((capacity, modifier) => modifier.type === 'resourceCapacityBonus' && modifier.resourceId === resourceId ? capacity + modifier.amount : capacity, facilityCapacity)
 }
 
 export function getResourceCapacities(state: GameState): Record<ResourceId, number> {

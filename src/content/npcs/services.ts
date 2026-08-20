@@ -6,6 +6,7 @@ export const shopItemDefinitions: ShopItemDefinition[] = [
   { id: 'mana_crystal', name: '마력 결정', description: '마력 +15', cost: { gold: 25 }, effects: [{ type: 'addResource', resourceId: 'mana', amount: 15 }], weight: 8, stock: 1, minTier: 2 },
   { id: 'core_repair_stone', name: '코어 수복석', description: '코어 HP +15', cost: { gold: 30 }, effects: [{ type: 'changeCoreHp', amount: 15 }], weight: 6, stock: 1, minTier: 2 },
   { id: 'repair_kit', name: '시설 수리 도구', description: '손상 시설 하나를 수리', cost: { gold: 20 }, effects: [{ type: 'repairRandomRoom' }], weight: 7, stock: 1, minTier: 2 },
+  { id: 'rare_ward_rune', name: '희귀품: 수호 룬판', description: '보유 중 방어력 +5인 유물', cost: { gold: 62 }, effects: [{ type: 'addItem', itemId: 'artifact_ward_rune', quantity: 1 }], weight: 1, stock: 1, minTier: 3 },
 ]
 
 export const shopItemDefinitionById = Object.fromEntries(shopItemDefinitions.map((item) => [item.id, item])) as Record<string, ShopItemDefinition>
@@ -31,11 +32,13 @@ export const npcServiceDefinitions: NpcServiceDefinition[] = [
   { id: 'core_stabilization', featureId: 'mage', name: '코어 안정화', description: '코어 HP +20', cost: { mana: 20 }, effects: [{ type: 'changeCoreHp', amount: 20 }] },
   { id: 'arcane_barrier', featureId: 'mage', name: '비전 장벽', description: '다음 침입 방어력 +16', cost: { mana: 25 }, effects: [{ type: 'addTimedModifier', modifierType: 'flatDefense', value: 16, consumeOnInvasion: true }] },
   { id: 'mana_surge', featureId: 'mage', name: '마력 쇄도', description: '3 DAY 동안 마력 시설 생산 +30%', cost: { mana: 20 }, effects: [{ type: 'addTimedModifier', modifierType: 'productionTagMultiplier', targetTag: 'mana', value: 1.3, durationDays: 3 }] },
+  { id: 'mana_transmutation', featureId: 'mage', name: '마력 물질화', description: '마력 18을 자재 10으로 변환', cost: { mana: 18 }, effects: [{ type: 'addResource', resourceId: 'material', amount: 10 }] },
   { id: 'protect_residents', featureId: 'healer', name: '주민 보호', description: '다음 침입 주민 손실 확률 -50%', cost: { gold: 15, food: 10 }, effects: [{ type: 'addTimedModifier', modifierType: 'residentLossChanceMultiplier', value: 0.5, consumeOnInvasion: true }] },
   { id: 'recovery_supplies', featureId: 'healer', name: '회복 물자', description: '다음 침입 주민 손실 확률 -40%', cost: { gold: 20 }, effects: [{ type: 'addTimedModifier', modifierType: 'residentLossChanceMultiplier', value: 0.6, consumeOnInvasion: true }] },
   { id: 'intel_power', featureId: 'informant', name: '전투력 분석', description: '다음 침입 예상 전투력 범위 공개', cost: { gold: 10 }, effects: [{ type: 'revealInvasionIntel', intelType: 'powerRange' }] },
   { id: 'intel_category', featureId: 'informant', name: '침입자 유형 분석', description: '다음 침입 후보 유형 공개', cost: { gold: 15 }, effects: [{ type: 'revealInvasionIntel', intelType: 'invaderCategory' }] },
   { id: 'intel_arrival', featureId: 'informant', name: '도착 시점 분석', description: '내부 공략 압력을 분석해 다음 침입 근접도를 공개', cost: { gold: 18 }, effects: [{ type: 'revealInvasionIntel', intelType: 'arrivalEstimate' }] },
+  { id: 'spread_false_trail', featureId: 'informant', name: '거짓 흔적 유포', description: '3 DAY 동안 기본 침입 확률 -6%p', cost: { gold: 22 }, effects: [{ type: 'addTimedModifier', modifierType: 'raidChanceOffset', value: -0.06, durationDays: 3 }] },
 ]
 
 export const npcServiceDefinitionById = Object.fromEntries(npcServiceDefinitions.map((item) => [item.id, item])) as Record<string, NpcServiceDefinition>

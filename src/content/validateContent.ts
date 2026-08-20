@@ -9,6 +9,7 @@ import { raceDefinitions } from './races/races'
 import { resourceDefinitions } from './resources/resources'
 import { tierDefinitions } from './tiers/tiers'
 import { gameIconDefinitionById } from './icons/gameIcons'
+import { itemDefinitions } from './items/items'
 
 function findDuplicateIds(label: string, ids: string[]): string[] {
   const seen = new Set<string>()
@@ -27,6 +28,7 @@ export function validateContent(): void {
     ...findDuplicateIds('resource', resourceDefinitions.map((item) => item.id)),
     ...findDuplicateIds('race', raceDefinitions.map((item) => item.id)),
     ...findDuplicateIds('npc', npcDefinitions.map((item) => item.id)),
+    ...findDuplicateIds('item', itemDefinitions.map((item) => item.id)),
     ...findDuplicateIds('shop item', shopItemDefinitions.map((item) => item.id)),
     ...findDuplicateIds('mercenary', mercenaryDefinitions.map((item) => item.id)),
     ...findDuplicateIds('recruitment offer', recruitmentOfferDefinitions.map((item) => item.id)),
@@ -45,6 +47,7 @@ export function validateContent(): void {
   const resourceIds = new Set(resourceDefinitions.map((item) => item.id))
   const raceIds = new Set(raceDefinitions.map((item) => item.id))
   const npcIds = new Set(npcDefinitions.map((item) => item.id))
+  const itemIds = new Set(itemDefinitions.map((item) => item.id))
   const facilityIds = new Set(facilityDefinitions.map((item) => item.id))
   const tierLevels = new Set(tierDefinitions.map((item) => item.level))
   const definedFlags = new Set(
@@ -69,6 +72,7 @@ export function validateContent(): void {
     }
     if ((effect.type === 'joinNpc' || effect.type === 'scheduleNpcRetry') && !npcIds.has(effect.npcId)) errors.push(`Unknown npcId "${effect.npcId}" referenced by ${source}.`)
     if (effect.type === 'setFlag' && effect.flag.trim().length === 0) errors.push(`Empty flag referenced by ${source}.`)
+    if ((effect.type === 'addItem' || effect.type === 'removeItem') && !itemIds.has(effect.itemId)) errors.push(`Unknown itemId "${effect.itemId}" referenced by ${source}.`)
   }
 
   const validateCondition = (condition: ConditionDefinition, source: string) => {
@@ -88,6 +92,7 @@ export function validateContent(): void {
       errors.push(`Unknown flag "${condition.flag}" referenced by ${source}.`)
     }
     if ((condition.type === 'npcJoined' || condition.type === 'npcEligible') && !npcIds.has(condition.npcId)) errors.push(`Unknown npcId "${condition.npcId}" referenced by ${source}.`)
+    if (condition.type === 'hasItem' && !itemIds.has(condition.itemId)) errors.push(`Unknown itemId "${condition.itemId}" referenced by ${source}.`)
   }
 
   initialPopulationGroups.forEach((group) => {
@@ -189,6 +194,10 @@ export function validateContent(): void {
       errors.push(`Invader "${invader.id}" has invalid fame or weight data.`)
     }
     invader.rewards.forEach((effect) => validateEffect(effect, `invader "${invader.id}"`))
+    invader.lootTable?.forEach((drop) => {
+      if (!itemIds.has(drop.itemId)) errors.push(`Invader "${invader.id}" references unknown loot item "${drop.itemId}".`)
+      if (drop.chance < 0 || drop.chance > 1 || drop.quantity.min <= 0 || drop.quantity.max < drop.quantity.min) errors.push(`Invader "${invader.id}" has invalid loot data for "${drop.itemId}".`)
+    })
   })
 
   npcDefinitions.forEach((npc) => {
@@ -197,6 +206,13 @@ export function validateContent(): void {
       if (!definedFlags.has(flag)) errors.push(`Unknown precursor flag "${flag}" referenced by npc "${npc.id}".`)
     })
     if (npc.visitPityDays < 1 || npc.retryCooldownDays < 1) errors.push(`NPC "${npc.id}" has invalid visit timing.`)
+  })
+  itemDefinitions.forEach((item) => {
+    if (item.sellValue < 0 || item.tags.length === 0 || !item.iconId) errors.push(`Item "${item.id}" has invalid value, tags, or iconId.`)
+    item.modifiers?.forEach((modifier) => {
+      if (modifier.type === 'resourceCapacityBonus' && !resourceIds.has(modifier.resourceId)) errors.push(`Item "${item.id}" references unknown resource "${modifier.resourceId}".`)
+      if (modifier.type === 'productionFlatBonus' && (!resourceIds.has(modifier.resourceId) || !modifier.targetTag)) errors.push(`Item "${item.id}" has invalid production modifier.`)
+    })
   })
   shopItemDefinitions.forEach((item) => { validateCost(item.cost, `shop item "${item.id}"`); item.effects.forEach((effect) => validateEffect(effect, `shop item "${item.id}"`)) })
   mercenaryDefinitions.forEach((item) => validateCost(item.cost, `mercenary "${item.id}"`))

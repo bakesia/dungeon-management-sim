@@ -10,6 +10,7 @@ export type SoundId =
   | 'defense_win'
   | 'defense_loss'
   | 'tier_up'
+  | 'special_visitor'
 
 type Tone = { frequency: number; duration: number; delay?: number; type?: OscillatorType; gain?: number }
 
@@ -29,6 +30,7 @@ const sounds: Record<SoundId, Tone[]> = {
   defense_win: [{ frequency: 392, duration: 0.08 }, { frequency: 523, duration: 0.08, delay: 0.08 }, { frequency: 659, duration: 0.14, delay: 0.16 }],
   defense_loss: [{ frequency: 294, duration: 0.09 }, { frequency: 220, duration: 0.1, delay: 0.09 }, { frequency: 147, duration: 0.16, delay: 0.19 }],
   tier_up: [{ frequency: 330, duration: 0.1 }, { frequency: 440, duration: 0.1, delay: 0.1 }, { frequency: 554, duration: 0.1, delay: 0.2 }, { frequency: 659, duration: 0.2, delay: 0.3 }],
+  special_visitor: [{ frequency: 196, duration: 0.07, type: 'triangle' }, { frequency: 392, duration: 0.12, delay: 0.08, type: 'square' }],
 }
 
 class SoundManager {

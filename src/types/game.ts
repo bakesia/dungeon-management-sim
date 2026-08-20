@@ -7,6 +7,8 @@ import type {
   ResourceId,
   TierId,
   EffectDefinition,
+  ItemId,
+  ResourceCost,
 } from './content'
 
 export interface Coordinate {
@@ -100,8 +102,15 @@ export interface InvasionRuntimeState {
 }
 
 export interface PopulationJoinRuntimeState {
-  pending: { raceId: RaceId; amount: number } | null
+  pending: {
+    incoming: Array<{ raceId: RaceId; count: number }>
+    source: 'event' | 'tavern'
+    sourceId?: string
+    cost?: ResourceCost
+  } | null
 }
+
+export interface InventoryEntry { itemId: ItemId; quantity: number }
 
 export interface MaintenanceRuntimeState {
   requiredGold: number
@@ -144,6 +153,7 @@ export interface GameState {
   day: number
   resources: Record<ResourceId, number>
   population: PopulationGroup[]
+  inventory: InventoryEntry[]
   currentTierId: TierId
   core: {
     hp: number

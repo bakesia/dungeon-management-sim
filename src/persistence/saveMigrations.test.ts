@@ -4,6 +4,15 @@ import { migrateSaveData } from './saveMigrations'
 import { SAVE_VERSION } from '../app/version'
 
 describe('migrateSaveData', () => {
+  it('migrates a v9 save with an empty inventory and converts a legacy population offer', () => {
+    const legacy = createInitialGameState() as unknown as Record<string, unknown>
+    legacy.saveVersion = 9
+    delete legacy.inventory
+    legacy.populationJoin = { pending: { raceId: 'goblin', amount: 2 } }
+    const migrated = migrateSaveData(legacy)
+    expect(migrated.inventory).toEqual([])
+    expect(migrated.populationJoin.pending).toMatchObject({ incoming: [{ raceId: 'goblin', count: 2 }], source: 'event' })
+  })
   it('normalizes partially missing current save fields', () => {
     const current = createInitialGameState()
     const legacy = {

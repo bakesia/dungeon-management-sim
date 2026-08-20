@@ -3,6 +3,7 @@ import { raceDefinitionById } from '../../content/races/races'
 import type { GameState } from '../../types/game'
 import { getRoomConditionEfficiency } from '../construction/roomCondition'
 import { calculateFacilityEfficiency, getFacilityLevel, getRaceCombatMultiplier } from '../population/assignWorkers'
+import { getActiveArtifactModifiers } from '../inventory/inventory'
 
 export const RESIDENT_BASE_COMBAT = 6
 
@@ -52,8 +53,11 @@ export function calculateDungeonDefenseBreakdown(state: GameState): DungeonDefen
     .map((contract) => ({ sourceType: 'mercenary' as const, sourceId: contract.contractId, label: `용병 · ${contract.contractId}`, amount: Math.floor(contract.combatPower * maintenanceMultiplier) }))
 
   const subtotal = [...residentContributions, ...roomContributions, ...mercenaryContributions].reduce((total, item) => total + item.amount, 0)
+  const artifactModifiers = getActiveArtifactModifiers(state)
   const flatDefense = state.timedModifiers.filter((modifier) => modifier.type === 'flatDefense' && (!modifier.expiresOnDay || state.day < modifier.expiresOnDay)).reduce((total, modifier) => total + modifier.value, 0)
+    + artifactModifiers.reduce((total, modifier) => modifier.type === 'flatDefense' ? total + modifier.amount : total, 0)
   const defenseMultiplier = state.timedModifiers.filter((modifier) => modifier.type === 'defenseMultiplier' && (!modifier.expiresOnDay || state.day < modifier.expiresOnDay)).reduce((value, modifier) => value * modifier.value, 1)
+    * artifactModifiers.reduce((value, modifier) => modifier.type === 'defenseMultiplier' ? value * modifier.value : value, 1)
   const modifierAmount = Math.floor((subtotal + flatDefense) * defenseMultiplier) - subtotal
   const modifierContributions: DefenseContribution[] = modifierAmount > 0 ? [{ sourceType: 'modifier', sourceId: 'active-defense-modifiers', label: '지원 효과', amount: modifierAmount }] : []
 

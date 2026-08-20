@@ -18,7 +18,7 @@ describe('invasion engine', () => {
     const resolution = resolveInvasion(state, invaderDefinitionById.invader_wandering_adventurer!, { next: () => 0.99 })
     const next = applyInvasionResolution({ ...state, invasion: { ...state.invasion, pendingResolution: resolution } }, resolution)
 
-    expect(next.resources.gold).toBe(118)
+    expect(next.resources.gold).toBe(114)
     expect(next.resources.mana).toBe(23)
     expect(next.invasion.fame).toBe(5)
     expect(next.invasion.totalWins).toBe(1)
@@ -92,5 +92,16 @@ describe('invasion engine', () => {
     const invader = invaderDefinitionById.invader_wandering_adventurer!
     expect(resolveInvasion(state, invader, { next: () => 0 }).actualCombatPower).toBe(invader.powerRange.min)
     expect(resolveInvasion(state, invader, { next: () => 0.999 }).actualCombatPower).toBe(invader.powerRange.max)
+  })
+
+  it('uses the injected RNG for deterministic loot drops', () => {
+    let state = createInitialGameState()
+    state.currentTierId = 'tier_2'
+    state = buildFacility(state, 'trap_room', '0:0:-1')
+    const invader = invaderDefinitionById.invader_wandering_adventurer!
+    const dropped = resolveInvasion(state, invader, sequenceRandom([0, 0, 0]))
+    expect(dropped.effects).toContainEqual({ type: 'addItem', itemId: 'loot_broken_blade', quantity: 1 })
+    const missed = resolveInvasion(state, invader, sequenceRandom([0, 0.99]))
+    expect(missed.effects.some((effect) => effect.type === 'addItem')).toBe(false)
   })
 })

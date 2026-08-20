@@ -35,6 +35,7 @@ export function GameScreen() {
   const demolishFacility = useGameStore((store) => store.demolishFacility)
   const adjustResident = useGameStore((store) => store.adjustResident)
   const purchaseShopItem = useGameStore((store) => store.purchaseShopItem)
+  const sellInventoryItem = useGameStore((store) => store.sellInventoryItem)
   const hireMercenary = useGameStore((store) => store.hireMercenary)
   const recruitResident = useGameStore((store) => store.recruitResident)
   const performNpcService = useGameStore((store) => store.performNpcService)
@@ -52,8 +53,15 @@ export function GameScreen() {
   const [preferences, setPreferences] = useState(loadGamePreferences)
   const warnedResolutionId = useRef<string | null>(null)
   const previousTierId = useRef<string | null>(null)
+  const previousVisitorId = useRef<string | null>(null)
   const currentEvent = state.events.currentEventId ? eventDefinitionById[state.events.currentEventId] : undefined
   const visitorEvent = currentEvent?.tags.includes('npc_join') ? currentEvent : undefined
+
+  useEffect(() => {
+    if (!visitorEvent || previousVisitorId.current === visitorEvent.id) return
+    previousVisitorId.current = visitorEvent.id
+    soundManager.play('special_visitor')
+  }, [visitorEvent])
 
   const handleSave = async () => {
     setSaveStatus('저장 중...')
@@ -213,6 +221,7 @@ export function GameScreen() {
           preferences={preferences}
           onPreferenceChange={changePreference}
           onPurchase={purchaseShopItem}
+          onSell={sellInventoryItem}
           onHire={hireMercenary}
           onRecruit={recruitResident}
           onService={performNpcService}

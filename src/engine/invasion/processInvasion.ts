@@ -47,7 +47,8 @@ export function getFameInvasionChance(state: GameState, pressure = state.invasio
   const tierChance = tierDefinitionById[state.currentTierId]?.invasionChance ?? 0
   const fame = Math.max(0, state.invasion.fame)
   const fameBonus = gameRules.invasion.fame.maximumChanceBonus * (fame / (fame + gameRules.invasion.fame.chanceScale))
-  return Math.min(0.55, tierChance + fameBonus + Math.min(pressure, gameRules.invasion.pity.maximumPressureBonus))
+  const serviceOffset = state.timedModifiers.filter((modifier) => modifier.type === 'raidChanceOffset' && (!modifier.expiresOnDay || state.day < modifier.expiresOnDay)).reduce((sum, modifier) => sum + modifier.value, 0)
+  return Math.max(0, Math.min(0.55, tierChance + fameBonus + Math.min(pressure, gameRules.invasion.pity.maximumPressureBonus) + serviceOffset))
 }
 
 export function getFameLevel(fame: number): '무명' | '소문난' | '주목받는' | '악명 높은' | '대악명' {
@@ -69,6 +70,14 @@ export function getRaidProximity(state: GameState): { label: string; maximumDays
 function rollCombatPower(invader: InvaderDefinition, randomSource: RandomSource): number {
   const { min, max } = invader.powerRange
   return min + Math.floor(clampRoll(randomSource.next()) * (max - min + 1))
+}
+
+function rollLoot(invader: InvaderDefinition, randomSource: RandomSource): EffectDefinition[] {
+  return (invader.lootTable ?? []).flatMap((drop) => {
+    if (randomSource.next() >= drop.chance) return []
+    const quantity = drop.quantity.min + Math.floor(clampRoll(randomSource.next()) * (drop.quantity.max - drop.quantity.min + 1))
+    return quantity > 0 ? [{ type: 'addItem' as const, itemId: drop.itemId, quantity }] : []
+  })
 }
 
 function formatEffects(state: GameState, effects: EffectDefinition[]): string {
@@ -152,7 +161,7 @@ export function resolveInvasion(state: GameState, invader: InvaderDefinition, ra
     defensePower: defense.total,
     success,
     contributions: defense.contributions,
-    effects: success ? invader.rewards : createDefeatEffects(state, invader, randomSource),
+    effects: success ? [...invader.rewards, ...rollLoot(invader, randomSource)] : createDefeatEffects(state, invader, randomSource),
   }
 }
 

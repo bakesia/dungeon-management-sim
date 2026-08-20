@@ -167,7 +167,7 @@ function removeDeprecatedFacilities(dungeon: GameState['dungeon']): GameState['d
 
 export function migrateSaveData(value: unknown): GameState {
   if (!isRecord(value) || typeof value.saveVersion !== 'number') throw new Error('Invalid save: missing numeric saveVersion.')
-  if (![1, 2, 3, 4, 5, 6, 7, 8, SAVE_VERSION].includes(value.saveVersion)) throw new Error(`Unsupported saveVersion ${value.saveVersion}; expected 1 through ${SAVE_VERSION}.`)
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, SAVE_VERSION].includes(value.saveVersion)) throw new Error(`Unsupported saveVersion ${value.saveVersion}; expected 1 through ${SAVE_VERSION}.`)
   if (typeof value.day !== 'number' || !Array.isArray(value.population) || !isRecord(value.dungeon)) throw new Error('Invalid save: day, population, or dungeon state is malformed.')
   const fallback = createInitialGameState()
   const population = normalizePopulation(value.population)
@@ -194,6 +194,7 @@ export function migrateSaveData(value: unknown): GameState {
     day: value.day,
     resources: { ...fallback.resources, ...normalizeNumberRecord(value.resources) },
     population,
+    inventory: Array.isArray(value.inventory) ? value.inventory.flatMap((entry) => isRecord(entry) && typeof entry.itemId === 'string' && typeof entry.quantity === 'number' && entry.quantity > 0 ? [{ itemId: entry.itemId, quantity: Math.floor(entry.quantity) }] : []) : [],
     currentTierId,
     core: { hp: typeof core.hp === 'number' ? core.hp : fallback.core.hp, maxHp: typeof core.maxHp === 'number' ? core.maxHp : fallback.core.maxHp },
     dungeon,
@@ -242,9 +243,16 @@ export function migrateSaveData(value: unknown): GameState {
           : null,
     },
     populationJoin: {
-      pending: pendingPopulationJoin && typeof pendingPopulationJoin.raceId === 'string' && typeof pendingPopulationJoin.amount === 'number'
-        ? { raceId: pendingPopulationJoin.raceId, amount: pendingPopulationJoin.amount }
-        : null,
+      pending: pendingPopulationJoin && Array.isArray(pendingPopulationJoin.incoming)
+        ? {
+            incoming: pendingPopulationJoin.incoming.flatMap((entry) => isRecord(entry) && typeof entry.raceId === 'string' && typeof entry.count === 'number' ? [{ raceId: entry.raceId, count: entry.count }] : []),
+            source: pendingPopulationJoin.source === 'tavern' ? 'tavern' : 'event',
+            sourceId: typeof pendingPopulationJoin.sourceId === 'string' ? pendingPopulationJoin.sourceId : undefined,
+            cost: isRecord(pendingPopulationJoin.cost) ? normalizeNumberRecord(pendingPopulationJoin.cost) : undefined,
+          }
+        : pendingPopulationJoin && typeof pendingPopulationJoin.raceId === 'string' && typeof pendingPopulationJoin.amount === 'number'
+          ? { incoming: [{ raceId: pendingPopulationJoin.raceId, count: pendingPopulationJoin.amount }], source: 'event' }
+          : null,
     },
     maintenance: {
       requiredGold: typeof maintenance.requiredGold === 'number' ? maintenance.requiredGold : 0,

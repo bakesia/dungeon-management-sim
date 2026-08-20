@@ -70,6 +70,7 @@ export function createInitialGameState(now = new Date()): GameState {
       resourceDefinitions.map((resource) => [resource.id, resource.initialAmount]),
     ),
     population: initialPopulationGroups.map((group) => ({ ...group })),
+    inventory: [],
     currentTierId: 'tier_1',
     core: { hp: 100, maxHp: 100 },
     dungeon: createInitialDungeon(),

@@ -5,6 +5,7 @@ export type TierId = string
 export type EventId = string
 export type InvaderId = string
 export type NpcId = string
+export type ItemId = string
 export type FeatureId = 'shop' | 'blacksmith' | 'tavern' | 'mage' | 'healer' | 'informant'
 
 export type ResourceCost = Record<ResourceId, number>
@@ -43,6 +44,8 @@ export type EffectDefinition =
   | { type: 'addTimedModifier'; modifierType: TimedModifierType; value: number; durationDays?: number; targetTag?: string; consumeOnInvasion?: boolean }
   | { type: 'revealInvasionIntel'; intelType: InvasionIntelType }
   | { type: 'changeFame'; amount: number }
+  | { type: 'addItem'; itemId: ItemId; quantity: number }
+  | { type: 'removeItem'; itemId: ItemId; quantity: number }
   | { type: 'addLog'; message: string; category?: GameLogCategory; presentation?: LogPresentation; sound?: PresentationSoundId; logDay?: number; presentationGroupId?: string; presentationSequence?: number; presentationPriority?: number }
 
 export type RoomModifierDefinition =
@@ -54,6 +57,7 @@ export type TimedModifierType =
   | 'defenseMultiplier'
   | 'productionTagMultiplier'
   | 'residentLossChanceMultiplier'
+  | 'raidChanceOffset'
 
 export type InvasionIntelType = 'powerRange' | 'invaderCategory' | 'arrivalEstimate'
 
@@ -73,6 +77,31 @@ export type ConditionDefinition =
   | { type: 'dayAtLeast'; day: number }
   | { type: 'npcJoined'; npcId: NpcId; value: boolean }
   | { type: 'npcEligible'; npcId: NpcId; value: boolean }
+  | { type: 'hasItem'; itemId: ItemId; quantity?: number }
+
+export type ItemCategory = 'loot' | 'artifact' | 'consumable' | 'special'
+export type ItemModifierDefinition =
+  | { type: 'resourceCapacityBonus'; resourceId: ResourceId; amount: number }
+  | { type: 'flatDefense'; amount: number }
+  | { type: 'defenseMultiplier'; value: number }
+  | { type: 'productionFlatBonus'; targetTag: string; resourceId: ResourceId; amount: number }
+
+export interface ItemDefinition {
+  id: ItemId
+  name: string
+  description: string
+  category: ItemCategory
+  sellValue: number
+  tags: string[]
+  iconId: string
+  modifiers?: ItemModifierDefinition[]
+}
+
+export interface LootDropDefinition {
+  itemId: ItemId
+  chance: number
+  quantity: { min: number; max: number }
+}
 
 export interface ResourceDefinition {
   id: ResourceId
@@ -182,6 +211,9 @@ export interface NpcDefinition {
   joinEventId: EventId
   featureId: FeatureId
   visitorText: string
+  joinLine: string
+  serviceSummary: string
+  visitorSymbol: string
   iconId?: string
   tags: string[]
 }
@@ -227,5 +259,6 @@ export interface InvaderDefinition {
   minimumFame: number
   weight: number
   rewards: EffectDefinition[]
+  lootTable?: LootDropDefinition[]
   tags: string[]
 }

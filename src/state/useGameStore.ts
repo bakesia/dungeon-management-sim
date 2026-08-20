@@ -5,7 +5,7 @@ import { digTile as runDigTile } from '../engine/dungeon/digTile'
 import { chooseEvent as runChooseEvent } from '../engine/events/processEvents'
 import { createInitialGameState } from '../engine/game/createInitialGameState'
 import { adjustResidentAssignment as runAdjustResidentAssignment } from '../engine/population/assignWorkers'
-import { hireMercenary as runHireMercenary, performNpcService as runNpcService, purchaseShopItem as runPurchaseShopItem, recruitResident as runRecruitResident, repairWithBlacksmith as runRepairWithBlacksmith } from '../engine/npcs/npcServices'
+import { hireMercenary as runHireMercenary, performNpcService as runNpcService, purchaseShopItem as runPurchaseShopItem, recruitResident as runRecruitResident, repairWithBlacksmith as runRepairWithBlacksmith, sellInventoryItem as runSellInventoryItem } from '../engine/npcs/npcServices'
 import { repairFacility as runRepairFacility } from '../engine/construction/repairFacility'
 import { continueAfterClear as runContinueAfterClear, processProgression as runProcessProgression } from '../engine/day/processProgression'
 import { applyInvasionResolution as runApplyInvasionResolution } from '../engine/invasion/processInvasion'
@@ -29,13 +29,14 @@ interface GameStore {
   demolishFacility(instanceId: string): boolean
   adjustResident(instanceId: string, raceId: string, delta: 1 | -1): boolean
   purchaseShopItem(itemId: string): boolean
+  sellInventoryItem(itemId: string, quantity: number): boolean
   hireMercenary(contractId: string): boolean
   recruitResident(offerId: string): boolean
   performNpcService(serviceId: string): boolean
   repairWithBlacksmith(instanceId: string): boolean
   chooseEvent(choiceId: string): boolean
   applyPendingInvasion(): 'win' | 'loss' | null
-  confirmPopulationReplacement(removals: Record<string, number>): boolean
+  confirmPopulationReplacement(acceptances: Record<string, number>, removals: Record<string, number>): boolean
   declinePopulationJoin(): void
   repairFacility(instanceId: string): boolean
   continueAfterClear(): Promise<boolean>
@@ -166,6 +167,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     catch (error) { set({ lastActionError: error instanceof Error ? error.message : '구매에 실패했습니다.' }); return false }
   },
 
+  sellInventoryItem: (itemId, quantity) => {
+    try { set({ game: runSellInventoryItem(get().game, itemId, quantity), lastActionError: null }); return true }
+    catch (error) { set({ lastActionError: error instanceof Error ? error.message : '판매에 실패했습니다.' }); return false }
+  },
+
   hireMercenary: (contractId) => {
     try { set({ game: runHireMercenary(get().game, contractId), lastActionError: null }); return true }
     catch (error) { set({ lastActionError: error instanceof Error ? error.message : '용병 고용에 실패했습니다.' }); return false }
@@ -204,9 +210,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return resolution.success ? 'win' : 'loss'
   },
 
-  confirmPopulationReplacement: (removals) => {
+  confirmPopulationReplacement: (acceptances, removals) => {
     try {
-      set({ game: runConfirmPopulationReplacement(get().game, removals), lastActionError: null })
+      set({ game: runConfirmPopulationReplacement(get().game, acceptances, removals), lastActionError: null })
       return true
     } catch (error) {
       set({ lastActionError: error instanceof Error ? error.message : '주민 교체에 실패했습니다.' })

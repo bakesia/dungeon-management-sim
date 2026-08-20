@@ -1,4 +1,4 @@
-import { ArrowLeft, Hammer, Landmark, Save, Users, UserRoundCog, X } from 'lucide-react'
+import { ArrowLeft, Backpack, Hammer, Landmark, Save, Users, UserRoundCog, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
 import { facilityDefinitions } from '../../content/facilities/facilities'
@@ -17,6 +17,7 @@ import { getTotalGoldMaintenance } from '../../engine/day/processMaintenance'
 import { resourceDefinitions } from '../../content/resources/resources'
 import { getResourceCapacity, isResourceOverCapacity } from '../../engine/resources/resourceCapacity'
 import { GameIcon } from '../icons/GameIcon'
+import { InventoryPanel } from '../inventory/InventoryPanel'
 
 interface GameMenuProps {
   state: GameState
@@ -29,6 +30,7 @@ interface GameMenuProps {
   preferences: GamePreferences
   onPreferenceChange: (key: keyof GamePreferences, value: boolean) => void
   onPurchase: (itemId: string) => boolean
+  onSell: (itemId: string, quantity: number) => boolean
   onHire: (contractId: string) => boolean
   onRecruit: (offerId: string) => boolean
   onService: (serviceId: string) => boolean
@@ -37,7 +39,7 @@ interface GameMenuProps {
   initialNpcFeature?: FeatureId | null
 }
 
-export type MenuView = 'main' | 'build' | 'population' | 'dungeon' | 'npcs'
+export type MenuView = 'main' | 'build' | 'population' | 'dungeon' | 'npcs' | 'inventory'
 
 function formatSignedAmount(amount: number): string {
   return `${amount >= 0 ? '+' : ''}${amount}`
@@ -69,7 +71,7 @@ function describeMaintenance(facility: FacilityDefinition): string[] {
   return maintenance.length > 0 ? maintenance : ['없음']
 }
 
-export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onReturnToTitle, onSelectBuild, preferences, onPreferenceChange, onPurchase, onHire, onRecruit, onService, onBlacksmithRepair, initialView = 'main', initialNpcFeature = null }: GameMenuProps) {
+export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onReturnToTitle, onSelectBuild, preferences, onPreferenceChange, onPurchase, onSell, onHire, onRecruit, onService, onBlacksmithRepair, initialView = 'main', initialNpcFeature = null }: GameMenuProps) {
   const tier = selectCurrentTier(state)
   const [view, setView] = useState<MenuView>(initialView)
   const defense = calculateDungeonDefenseBreakdown(state)
@@ -123,6 +125,7 @@ export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onRetu
           <button type="button" onClick={() => setView('npcs')}>
             <span className="menu-list__label"><UserRoundCog className="size-3" aria-hidden="true" />NPC</span><span>거래 · 지원</span>
           </button>
+          <button type="button" onClick={() => setView('inventory')}><span className="menu-list__label"><Backpack className="size-3" aria-hidden="true" />인벤토리</span><span>{state.inventory.reduce((sum, entry) => sum + entry.quantity, 0)}개</span></button>
           <button type="button" disabled>기록<span>준비 중</span></button>
           <button type="button" onClick={onSave}>
             <span className="menu-list__label"><Save className="size-3" aria-hidden="true" />저장</span>
@@ -214,7 +217,8 @@ export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onRetu
             )}
           </section>
         )}
-        {view === 'npcs' && <section className="menu-subview"><button className="menu-back" type="button" onClick={() => setView('main')}><ArrowLeft className="size-3" />관리 메뉴</button><h3>던전의 협력자</h3><NpcHub state={state} initialFeature={initialNpcFeature} onPurchase={onPurchase} onHire={onHire} onRecruit={onRecruit} onService={onService} onRepair={onBlacksmithRepair} /></section>}
+        {view === 'inventory' && <section className="menu-subview"><button className="menu-back" type="button" onClick={() => setView('main')}><ArrowLeft className="size-3" />관리 메뉴</button><h3>인벤토리</h3><InventoryPanel state={state}/></section>}
+        {view === 'npcs' && <section className="menu-subview"><button className="menu-back" type="button" onClick={() => setView('main')}><ArrowLeft className="size-3" />관리 메뉴</button><h3>던전의 협력자</h3><NpcHub state={state} initialFeature={initialNpcFeature} onPurchase={onPurchase} onSell={onSell} onHire={onHire} onRecruit={onRecruit} onService={onService} onRepair={onBlacksmithRepair} /></section>}
         <p className="save-status" aria-live="polite">{(saveError ?? saveStatus) || 'DAY 종료 시 자동 저장됩니다.'}</p>
       </motion.aside>
     </motion.div>

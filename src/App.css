@@ -366,6 +366,26 @@
 .decision-actions button { min-height: 42px; }
 .visitor-silhouette { display: grid; place-items: center; width: 72px; height: 72px; margin: 20px auto 0; border: 2px solid #766a50; color: #baa46b; background: #090b0b; font: 700 35px var(--mono); }
 .visitor-name { display: block; margin-top: 10px; color: #c9b781; text-align: center; font: 500 19px Georgia, "Batang", serif; }
+.visitor-role { margin: 4px 0 14px; color: #8f846c; text-align: center; font: 11px var(--mono); text-transform: uppercase; }
+.visitor-terms { display: grid; gap: 1px; margin: 12px 0; border: 1px solid #4b4538; background: #1b1b18; }
+.visitor-terms p { display: flex; justify-content: space-between; gap: 16px; margin: 0; padding: 8px 10px; background: #101211; }
+.visitor-terms span { color: #8f8a7d; font-size: 11px; }
+.visitor-terms strong { color: #d2c59e; font-size: 12px; text-align: right; }
+
+.inventory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-bottom: 16px; }
+.inventory-card { display: grid; grid-template-columns: 42px 1fr; gap: 10px; min-height: 112px; padding: 11px; border: 1px solid #4a473e; border-top-color: #76705e; background: #151716; }
+.inventory-card--artifact { border-color: #817045; background: #1c1911; }
+.inventory-token { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid #5e5848; color: #b8a56e; background: #090a0a; font: 700 18px var(--mono); }
+.inventory-card small, .inventory-card strong, .inventory-card em { display: block; }
+.inventory-card small { color: #9a8b66; font: 10px var(--mono); }
+.inventory-card strong { margin-top: 3px; color: #e1ddd0; }
+.inventory-card p { margin: 5px 0; color: #aaa79d; font-size: 12px; line-height: 1.45; }
+.inventory-card em { color: #c4ad6d; font: normal 11px var(--mono); }
+.inventory-empty { padding: 20px; border: 1px dashed #504c42; color: #8f8b80; }
+.sell-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 10px; border: 1px solid #403e37; background: #121413; }
+.sell-row.is-artifact { border-color: #75633b; }
+.sell-row span strong, .sell-row span small { display: block; }
+.sell-action { min-width: 78px; padding: 8px; border: 1px solid #70613c; color: #d8c58b; background: #242015; font: 11px var(--mono); }
 .replacement-list { display: grid; gap: 1px; margin: 10px 22px; border: 1px solid #45433b; background: #45433b; }
 .replacement-row { display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 10px; padding: 10px 12px; background: #171b1a; }
 .replacement-row > span { display: grid; gap: 3px; }

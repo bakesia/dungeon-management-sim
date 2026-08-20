@@ -32,7 +32,7 @@ const baseEventDefinitions: EventDefinition[] = [
     id: 'event_old_chest', title: '오래된 상자', text: '무너진 벽 뒤에서 녹슨 자물쇠가 달린 상자를 찾았습니다.',
     conditions: [], weight: 7, once: true, tags: ['discovery', 'gold'],
     choices: [
-      { id: 'open', text: '상자를 연다', effects: [{ type: 'addResource', resourceId: 'gold', amount: 18 }, { type: 'addLog', category: 'resource', message: '낡은 금화를 발견했습니다. [골드 +18]' }] },
+      { id: 'open', text: '상자를 연다', effects: [{ type: 'addResource', resourceId: 'gold', amount: 10 }, { type: 'addItem', itemId: 'loot_silver_trinket', quantity: 1 }, { type: 'addLog', category: 'resource', message: '낡은 금화와 은제 장신구를 발견했습니다. [골드 +10]' }] },
       { id: 'ignore', text: '수상하니 두고 간다', effects: [{ type: 'addLog', category: 'event', message: '상자를 건드리지 않았습니다.' }] },
     ],
   },
@@ -98,6 +98,30 @@ const baseEventDefinitions: EventDefinition[] = [
     choices: [
       { id: 'study', text: '흔적을 조사한다', effects: [{ type: 'setFlag', flag: 'adventurer_scouted', value: true }, { type: 'addLog', category: 'invasion', message: '모험가의 정찰 경로를 파악했습니다.' }] },
       { id: 'erase', text: '흔적을 지우고 입구를 위장한다', conditions: [{ type: 'resourceAtLeast', resourceId: 'material', amount: 3 }], effects: [{ type: 'addResource', resourceId: 'material', amount: -3 }, { type: 'addLog', category: 'invasion', message: '던전 입구를 위장했습니다. [자재 -3]' }] },
+    ],
+  },
+  {
+    id: 'event_abandoned_camp', title: '버려진 야영지', text: '급히 철수한 모험가 야영지에 배낭과 장비 조각이 남아 있습니다.',
+    conditions: [{ type: 'dayAtLeast', day: 4 }], weight: 5, once: true, tags: ['loot', 'invasion'],
+    choices: [
+      { id: 'salvage', text: '쓸 만한 물건을 챙긴다', effects: [{ type: 'addItem', itemId: 'loot_adventurer_pack', quantity: 1 }, { type: 'addItem', itemId: 'loot_armor_scrap', quantity: 1 }, { type: 'addLog', category: 'resource', message: '야영지에서 판매 가능한 전리품을 챙겼습니다.' }] },
+      { id: 'erase', text: '흔적만 지운다', effects: [{ type: 'addResource', resourceId: 'material', amount: 5 }, { type: 'addLog', category: 'event', message: '야영지를 해체해 자재를 확보했습니다. [자재 +5]' }] },
+    ],
+  },
+  {
+    id: 'event_arcane_cache', title: '봉인된 마력 궤', text: '오래된 봉인 안에서 비전 파편들이 떨리고 있습니다.',
+    conditions: [{ type: 'tierAtLeast', level: 2 }], weight: 3, once: true, tags: ['loot', 'mana'],
+    choices: [
+      { id: 'open', text: '마력 8로 봉인을 푼다', conditions: [{ type: 'resourceAtLeast', resourceId: 'mana', amount: 8 }], effects: [{ type: 'addResource', resourceId: 'mana', amount: -8 }, { type: 'addItem', itemId: 'loot_arcane_fragment', quantity: 2 }, { type: 'addLog', category: 'resource', message: '봉인된 비전 파편 두 개를 회수했습니다.' }] },
+      { id: 'leave', text: '위험을 피한다', effects: [{ type: 'addLog', category: 'event', message: '마력 궤를 봉인된 채 남겼습니다.' }] },
+    ],
+  },
+  {
+    id: 'event_forgotten_hoard_relic', title: '잊힌 수장고', text: '코어 아래 숨은 작은 수장고에서 기묘한 돌 하나가 던전의 자원을 끌어당깁니다.',
+    conditions: [{ type: 'tierAtLeast', level: 3 }, { type: 'defenseWinsAtLeast', amount: 3 }], weight: 1, once: true, tags: ['artifact', 'rare'],
+    choices: [
+      { id: 'claim', text: '유물을 코어에 귀속한다', effects: [{ type: 'addItem', itemId: 'artifact_hoard_stone', quantity: 1 }, { type: 'addLog', category: 'progression', presentation: 'typewriter', sound: 'event_positive', message: '수장고의 유물이 던전에 귀속되었습니다. 저장 한도가 넓어집니다.' }] },
+      { id: 'sell_marks', text: '수장고의 표식만 떼어낸다', effects: [{ type: 'addResource', resourceId: 'gold', amount: 28 }, { type: 'addLog', category: 'resource', message: '오래된 표식을 처분했습니다. [골드 +28]' }] },
     ],
   },
 ]

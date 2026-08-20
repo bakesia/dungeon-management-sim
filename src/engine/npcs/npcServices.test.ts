@@ -4,6 +4,7 @@ import { createInitialGameState } from '../game/createInitialGameState'
 import { calculateDungeonDefense } from '../invasion/calculateDungeonDefense'
 import { hireMercenary, isFeatureUnlocked, performNpcService, processNpcRuntime, purchaseShopItem, recruitResident, repairWithBlacksmith } from './npcServices'
 import { chooseEvent } from '../events/processEvents'
+import { confirmPopulationReplacement } from '../population/residentReplacement'
 
 function join(state: ReturnType<typeof createInitialGameState>, npcId: string) { return applyEffect(state, { type: 'joinNpc', npcId }) }
 
@@ -58,6 +59,7 @@ describe('NPC services', () => {
     let state = join(createInitialGameState(), 'npc_tavern_keeper')
     state.dungeon.rooms['facility-quarters-1']!.level = 2
     state = recruitResident(state, 'recruit_orc')
+    state = confirmPopulationReplacement(state, { orc: 1 }, {})
     expect(state.population.find((group) => group.raceId === 'orc')?.count).toBe(1)
     expect(state.resources).toMatchObject({ gold: 74, food: 28 })
     expect(state.tavern.recruitmentOffers.find((offer) => offer.offerId === 'recruit_orc')?.remaining).toBe(0)
@@ -65,9 +67,9 @@ describe('NPC services', () => {
     expect(() => recruitResident(state, 'recruit_orc')).toThrow('모집 주기')
   })
 
-  it('blocks recruitment at capacity and refreshes recruitment independently', () => {
+  it('allows a capacity-blocked offer to enter the partial acceptance flow and refreshes recruitment independently', () => {
     const state = join(createInitialGameState(), 'npc_tavern_keeper')
-    expect(() => recruitResident(state, 'recruit_goblin_pair')).toThrow('숙소가 부족')
+    expect(recruitResident(state, 'recruit_goblin_pair').populationJoin.pending?.incoming).toEqual([{ raceId: 'goblin', count: 2 }])
     state.day = 5
     state.currentTierId = 'tier_2'
     state.tavern.lastRefreshDay = 5

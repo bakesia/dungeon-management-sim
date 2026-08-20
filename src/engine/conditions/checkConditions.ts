@@ -2,6 +2,7 @@ import { tierDefinitionById } from '../../content/tiers/tiers'
 import type { ConditionDefinition } from '../../types/content'
 import type { GameState } from '../../types/game'
 import { getPopulationSpace, getPopulationTotal } from '../population/populationMetrics'
+import { hasItem } from '../inventory/inventory'
 
 export function checkCondition(state: GameState, condition: ConditionDefinition): boolean {
   if (condition.type === 'resourceAtLeast') return (state.resources[condition.resourceId] ?? 0) >= condition.amount
@@ -27,6 +28,7 @@ export function checkCondition(state: GameState, condition: ConditionDefinition)
   if (condition.type === 'dayAtLeast') return state.day >= condition.day
   if (condition.type === 'npcJoined') return Boolean(state.npcs[condition.npcId]?.joined) === condition.value
   if (condition.type === 'npcEligible') return Boolean(state.npcs[condition.npcId]?.eligible) === condition.value
+  if (condition.type === 'hasItem') return hasItem(state, condition.itemId, condition.quantity ?? 1)
   return false
 }
 
