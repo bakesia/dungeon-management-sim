@@ -25,6 +25,8 @@ export const gameIconDefinitions: GameIconDefinition[] = [
   { id: 'room_mana_reservoir', column: 4, row: 2 },
   { id: 'room_infirmary', column: 0, row: 3 },
   { id: 'room_reinforced_gate', column: 1, row: 3 },
+  { id: 'room_gold_mine', column: 2, row: 3 },
+  { id: 'node_gold_vein', column: 3, row: 3 },
 ]
 
 export const gameIconDefinitionById = Object.fromEntries(
