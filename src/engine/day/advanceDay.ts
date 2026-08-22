@@ -53,6 +53,7 @@ export function advanceDay(state: GameState, context: AdvanceDayContext = {}): G
     day: nextState.day + 1,
     excavation: {
       actionsRemaining: getExcavationCapacity(),
+      totalCompleted: nextState.excavation.totalCompleted,
     },
     statistics: {
       ...nextState.statistics,

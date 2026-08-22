@@ -181,7 +181,7 @@ describe('migrateSaveData', () => {
 
     expect(first.saveVersion).toBe(SAVE_VERSION)
     expect(first.world.seed).toBe(second.world.seed)
-    expect(first.world.generationVersion).toBe(1)
+    expect(first.world.generationVersion).toBe(2)
     expect(first.excavation.actionsRemaining).toBe(2)
     expect(first.dungeon.rooms['facility-core-1']).toBeDefined()
     expect(first.dungeon.tiles['0:0:0']).toMatchObject({
@@ -239,5 +239,32 @@ describe('migrateSaveData', () => {
       ...current,
       world: { ...current.world, generationVersion: 0 },
     })).toThrow('world seed or generation version')
+  })
+
+  it('loads a revealed but unexcavated gold-bearing rock without a migration', () => {
+    const current = createInitialGameState()
+    const tile = current.dungeon.tiles['0:0:-2']!
+    const loaded = migrateSaveData({
+      ...current,
+      dungeon: {
+        ...current.dungeon,
+        tiles: {
+          ...current.dungeon.tiles,
+          [tile.id]: {
+            ...tile,
+            terrain: 'rock',
+            revealed: true,
+            discovery: { discoveryId: 'gold_vein', variant: 123, resolved: false },
+          },
+        },
+      },
+    })
+
+    expect(loaded.saveVersion).toBe(SAVE_VERSION)
+    expect(loaded.dungeon.tiles[tile.id]).toMatchObject({
+      terrain: 'rock',
+      discovery: { discoveryId: 'gold_vein', variant: 123, resolved: false },
+      persistentNode: undefined,
+    })
   })
 })

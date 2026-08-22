@@ -145,6 +145,14 @@
 .dungeon-tile--excavatable-rock { color: #717c76; background: radial-gradient(circle at 30% 25%, #29302d, #171b1a 70%); border-color: #465049; }
 .dungeon-tile--revealed-floor { color: #87918c; background: #1c2220; border-color: #4c5651; box-shadow: inset 0 0 18px rgba(0,0,0,.35); }
 .dungeon-tile--occupied { color: #c5cbbd; background: linear-gradient(145deg, #2a322e, #1d2421); border-color: #687463; box-shadow: inset 0 0 20px rgba(0,0,0,.32); }
+.dungeon-tile.has-gold-vein { color: #e2c76f; border-color: #9b7c31; box-shadow: inset 0 0 0 2px rgba(202,164,66,.16); }
+.dungeon-tile.has-gold-vein .dungeon-tile__name { color: #e3c86e; font-weight: 700; }
+.dungeon-tile.is-cavern-reveal { animation: cavern-tile-reveal .22s steps(3, end) var(--reveal-delay, 0ms) both; }
+@keyframes cavern-tile-reveal {
+  0% { opacity: .15; filter: brightness(.45); }
+  55% { opacity: .7; filter: brightness(1.45); }
+  100% { opacity: 1; filter: brightness(1); }
+}
 .dungeon-tile.is-selected { border: 2px solid #c2ce8c; background-color: #303831; }
 .dungeon-tile.is-damaged { border-color: #a65e50; background: repeating-linear-gradient(135deg, #2a211f 0 5px, #211b1a 5px 10px); }
 .dungeon-tile.is-build-target { border-color: #b6c47d; box-shadow: inset 0 0 0 2px rgba(182,196,125,.17); animation: build-target 1s steps(2) infinite; }

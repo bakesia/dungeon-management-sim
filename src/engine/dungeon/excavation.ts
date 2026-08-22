@@ -1,12 +1,13 @@
-import { discoveryDefinitionById } from '../../content/discoveries/discoveries'
 import { gameRules } from '../../content/gameRules'
 import type { ResourceCost } from '../../types/content'
-import type { DungeonTile, GameState } from '../../types/game'
+import type { Coordinate, DungeonTile, GameState } from '../../types/game'
 import type { ActionCheck } from '../../types/engine'
 import { applyEffect } from '../effects/applyEffects'
 import { tileId } from '../game/createInitialGameState'
 import { canAfford, formatResourceCost, payResourceCost } from '../resources/resourceCosts'
 import { getLatentTileResult } from '../world/worldGeneration'
+import { getDiscoveryName, resolveExcavationDiscovery } from './discoveryResolution'
+import { revealAdjacentDiscoveries } from './revealAdjacentDiscoveries'
 
 const neighborOffsets = [
   { x: 0, y: -1 },
@@ -30,8 +31,10 @@ export function getExcavationCapacity(): number {
   return gameRules.excavation.baseActionsPerDay
 }
 
-export function getExcavationCost(): ResourceCost {
-  return { ...gameRules.excavation.cost }
+export function getExcavationCost(coordinate: Coordinate): ResourceCost {
+  const distance = Math.abs(coordinate.x) + Math.abs(coordinate.y)
+  const tier = gameRules.excavation.materialCostByDistance.find((entry) => distance <= entry.maxDistance)
+  return { material: tier?.amount ?? gameRules.excavation.materialCostByDistance.at(-1)!.amount }
 }
 
 export function isExcavationAccessible(state: GameState, tile: DungeonTile): boolean {
@@ -55,8 +58,9 @@ export function canExcavate(state: GameState, targetTileId: string): ActionCheck
   if (!tile.revealed) return { allowed: false, reason: '아직 접근할 수 없는 암반입니다.' }
   if (!isExcavationAccessible(state, tile)) return { allowed: false, reason: '공개된 바닥과 상하좌우로 인접한 암반만 굴착할 수 있습니다.' }
   if (state.excavation.actionsRemaining <= 0) return { allowed: false, reason: '오늘의 굴착 횟수를 모두 사용했습니다.' }
-  if (!canAfford(state, getExcavationCost())) {
-    return { allowed: false, reason: `굴착 비용이 부족합니다: ${formatResourceCost(getExcavationCost())}` }
+  const cost = getExcavationCost(tile.coordinate)
+  if (!canAfford(state, cost)) {
+    return { allowed: false, reason: `굴착 비용이 부족합니다: ${formatResourceCost(cost)}` }
   }
   return { allowed: true }
 }
@@ -67,9 +71,13 @@ export function excavateTile(state: GameState, targetTileId: string, now = new D
 
   const originalTarget = state.dungeon.tiles[targetTileId]
   if (!originalTarget) throw new Error(`Tile "${targetTileId}" disappeared during excavation.`)
-  const latent = getLatentTileResult(state.world.seed, state.world.generationVersion, originalTarget.coordinate)
-  const definition = discoveryDefinitionById[latent.discoveryId]
-  let nextState = payResourceCost(state, getExcavationCost(), now)
+  let latent = getLatentTileResult(state.world.seed, state.world.generationVersion, originalTarget.coordinate)
+  const wasAlreadyRevealed = originalTarget.discovery?.discoveryId === latent.discoveryId && !originalTarget.discovery.resolved
+  if (state.excavation.totalCompleted < gameRules.excavation.safeExcavations && latent.discoveryId === 'hazard') {
+    latent = { ...latent, discoveryId: 'empty', persistentNodeType: undefined }
+  }
+  const excavationCost = getExcavationCost(originalTarget.coordinate)
+  let nextState = payResourceCost(state, excavationCost, now)
   const target = nextState.dungeon.tiles[targetTileId]
   if (!target) throw new Error(`Tile "${targetTileId}" disappeared after paying excavation cost.`)
 
@@ -79,7 +87,7 @@ export function excavateTile(state: GameState, targetTileId: string, now = new D
       ...target,
       terrain: 'floor' as const,
       revealed: true,
-      discovery: { discoveryId: latent.discoveryId, variant: latent.variant, resolved: true },
+      discovery: { discoveryId: latent.discoveryId, variant: latent.variant, resolved: true, source: 'excavation' as const },
       persistentNode: latent.persistentNodeType ? { type: latent.persistentNodeType } : undefined,
     },
   }
@@ -95,16 +103,22 @@ export function excavateTile(state: GameState, targetTileId: string, now = new D
 
   nextState = {
     ...nextState,
-    excavation: { actionsRemaining: nextState.excavation.actionsRemaining - 1 },
+    excavation: {
+      actionsRemaining: nextState.excavation.actionsRemaining - 1,
+      totalCompleted: nextState.excavation.totalCompleted + 1,
+    },
     dungeon: { ...nextState.dungeon, tiles },
   }
-  const discoveryText = latent.discoveryId === 'empty' ? '' : ` · ${definition.name} 발견`
+  const discoveryText = latent.discoveryId === 'empty' || wasAlreadyRevealed ? '' : ` · ${getDiscoveryName(latent.discoveryId)} 발견`
   const spentText = formatResourceCost(Object.fromEntries(
-    Object.entries(getExcavationCost()).map(([resourceId, amount]) => [resourceId, -amount]),
+    Object.entries(excavationCost).map(([resourceId, amount]) => [resourceId, -amount]),
   ))
-  return applyEffect(nextState, {
+  nextState = applyEffect(nextState, {
     type: 'addLog',
     category: 'system',
     message: `[굴착] 암반을 굴착했습니다. ${spentText}${discoveryText}`,
   }, now)
+  nextState = revealAdjacentDiscoveries(nextState, [targetTileId], now)
+  if (wasAlreadyRevealed && latent.persistentNodeType) return nextState
+  return resolveExcavationDiscovery(nextState, targetTileId, now)
 }

@@ -8,6 +8,7 @@ import { getRoomConditionEfficiency } from '../construction/roomCondition'
 import { getOwnedArtifacts } from '../inventory/inventory'
 
 export interface ProductionSource {
+  sourceId?: string
   label: string
   resourceId: ResourceId
   amount: number
@@ -42,7 +43,7 @@ export function calculateDailyProduction(state: GameState, maintenanceMultiplier
       const amount = scaleResourceAmount(effect.amount, efficiency)
       if (amount === 0) continue
       resources[effect.resourceId] = (resources[effect.resourceId] ?? 0) + amount
-      sources.push({ label: `${definition.name} Lv.${room.level}`, resourceId: effect.resourceId, amount, sourceType: 'facility' })
+      sources.push({ sourceId: room.instanceId, label: `${definition.name}${definition.showLevel === false ? '' : ` Lv.${room.level}`}`, resourceId: effect.resourceId, amount, sourceType: 'facility' })
     }
 
     if (efficiency <= 0) continue

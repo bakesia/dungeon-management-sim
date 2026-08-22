@@ -207,6 +207,7 @@ export function GameMenu({ state, saveStatus, saveError, onClose, onSave, onRetu
               <p><span>던전 방어력</span><strong>{defense.total}</strong></p>
               <p><span>시설 유지비</span><strong>골드 {getTotalGoldMaintenance(state)} / DAY</strong></p>
               <p><span>다음 DAY 예상 골드</span><strong>{state.resources.gold} → {Math.max(0, state.resources.gold - getTotalGoldMaintenance(state))}</strong></p>
+              <p><span>WORLD SEED</span><strong>{state.world.seed}</strong></p>
             </div>
             <div className="capacity-overview">
               {resourceDefinitions.map((resource) => <p className={isResourceOverCapacity(state, resource.id) ? 'is-over-capacity' : ''} key={resource.id}>

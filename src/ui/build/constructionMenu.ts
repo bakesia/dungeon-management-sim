@@ -7,7 +7,7 @@ export interface ConstructionMenuGroups {
 }
 
 export function getConstructionMenuGroups(currentTierLevel: number): ConstructionMenuGroups {
-  const buildable = facilityDefinitions.filter((facility) => facility.buildable)
+  const buildable = facilityDefinitions.filter((facility) => facility.buildable && !facility.requiredNodeType)
   return {
     available: buildable.filter((facility) => facility.requiredTier <= currentTierLevel),
     locked: buildable.filter((facility) => facility.requiredTier > currentTierLevel)

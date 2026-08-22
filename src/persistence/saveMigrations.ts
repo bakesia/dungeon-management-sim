@@ -171,6 +171,11 @@ function normalizeTile(id: string, raw: unknown, saveVersion: number): DungeonTi
           discoveryId: raw.discovery.discoveryId as NonNullable<DungeonTile['discovery']>['discoveryId'],
           variant: raw.discovery.variant,
           resolved: raw.discovery.resolved,
+          source: raw.discovery.source === 'excavation'
+            ? 'excavation' as const
+            : raw.discovery.source === 'cavern'
+              ? 'cavern' as const
+              : undefined,
         }
       : undefined
   if (raw.discovery !== undefined && !discovery) throw new Error(`Invalid save: dungeon tile "${id}" has malformed discovery state.`)
@@ -178,13 +183,22 @@ function normalizeTile(id: string, raw: unknown, saveVersion: number): DungeonTi
     ? { type: 'gold_vein' as const }
     : undefined
   if (raw.persistentNode !== undefined && !persistentNode) throw new Error(`Invalid save: dungeon tile "${id}" has invalid persistent node.`)
-  if ((discovery || persistentNode || facilityInstanceId) && (raw.terrain !== 'floor' || !raw.revealed)) {
+  const isAdjacentRockDiscovery = raw.terrain === 'rock'
+    && raw.revealed
+    && discovery?.resolved === false
+    && discoveryDefinitionById[discovery.discoveryId].revealWhenAdjacentFloor === true
+    && !persistentNode
+    && !facilityInstanceId
+  if ((discovery || persistentNode || facilityInstanceId) && raw.terrain !== 'floor' && !isAdjacentRockDiscovery) {
+    throw new Error(`Invalid save: dungeon tile "${id}" has content on unrevealed rock.`)
+  }
+  if ((discovery || persistentNode || facilityInstanceId) && !raw.revealed) {
     throw new Error(`Invalid save: dungeon tile "${id}" has content on unrevealed rock.`)
   }
   if (persistentNode && (!discovery || discoveryDefinitionById[discovery.discoveryId].persistentNodeType !== persistentNode.type)) {
     throw new Error(`Invalid save: dungeon tile "${id}" has inconsistent persistent discovery state.`)
   }
-  if (discovery && discoveryDefinitionById[discovery.discoveryId].resolution === 'persistent' && !persistentNode) {
+  if (discovery && discoveryDefinitionById[discovery.discoveryId].resolution === 'persistent' && !persistentNode && !isAdjacentRockDiscovery) {
     throw new Error(`Invalid save: dungeon tile "${id}" is missing its persistent node.`)
   }
   return { id, coordinate, terrain: raw.terrain, revealed: raw.revealed, discovery, persistentNode, facilityInstanceId }
@@ -276,6 +290,11 @@ export function migrateSaveData(value: unknown, randomSource: RandomSource = def
       : typeof rawExcavation.actionsRemaining === 'number'
         ? Math.max(0, Math.min(gameRules.excavation.baseActionsPerDay, Math.floor(rawExcavation.actionsRemaining)))
         : gameRules.excavation.baseActionsPerDay,
+    totalCompleted: typeof rawExcavation.totalCompleted === 'number'
+      ? Math.max(0, Math.floor(rawExcavation.totalCompleted))
+      : value.saveVersion === 11
+        ? Object.values(dungeon.tiles).filter((tile) => tile.discovery).length
+        : 0,
   }
   const currentTierId = typeof value.currentTierId === 'string' ? value.currentTierId : fallback.currentTierId
   const totalWins = typeof invasion.totalWins === 'number' ? invasion.totalWins : 0

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialGameState, tileId } from '../game/createInitialGameState'
-import { buildFacility, canBuildFacility, demolishFacility, getDemolitionRefund, upgradeFacility } from './facilities'
+import { buildFacility, canBuildFacility, canUpgradeFacility, demolishFacility, getDemolitionRefund, upgradeFacility } from './facilities'
 import { facilityDefinitionById } from '../../content/facilities/facilities'
+import { adjustResidentAssignment } from '../population/assignWorkers'
+import { calculateDailyProduction } from '../day/processDailyProduction'
 
 describe('facility construction', () => {
   it('builds, upgrades, and demolishes a data-defined facility', () => {
@@ -62,5 +64,32 @@ describe('facility construction', () => {
     const demolished = demolishFacility(state, instanceId)
     expect(demolished.resources.gold).toBe(43)
     expect(demolished.resources.material).toBe(88)
+  })
+
+  it('builds a worker-based Gold Mine only on a persistent vein and preserves the vein after demolition', () => {
+    const veinTileId = tileId(0, -1)
+    const state = createInitialGameState()
+    state.dungeon.tiles[veinTileId] = {
+      ...state.dungeon.tiles[veinTileId]!,
+      persistentNode: { type: 'gold_vein' },
+      discovery: { discoveryId: 'gold_vein', variant: 1, resolved: true, source: 'excavation' },
+    }
+    expect(canBuildFacility(state, 'quarters', veinTileId)).toMatchObject({ allowed: false, reason: '자원 노드에는 전용 시설만 건설할 수 있습니다.' })
+    expect(canBuildFacility(state, 'gold_mine', tileId(0, 1)).allowed).toBe(false)
+
+    const built = buildFacility(state, 'gold_mine', veinTileId)
+    const instanceId = built.dungeon.tiles[veinTileId]!.facilityInstanceId!
+    expect(built.resources.material).toBe(45)
+    expect(facilityDefinitionById.gold_mine).toMatchObject({ requiredNodeType: 'gold_vein', showLevel: false })
+    expect(canUpgradeFacility(built, instanceId).allowed).toBe(false)
+
+    const staffed = adjustResidentAssignment(built, instanceId, 'goblin', 1)
+    expect(calculateDailyProduction(staffed).resources.gold).toBe(5)
+    expect(calculateDailyProduction(staffed).sources).toContainEqual(expect.objectContaining({ sourceId: instanceId, resourceId: 'gold', amount: 5 }))
+
+    const demolished = demolishFacility(staffed, instanceId)
+    expect(demolished.resources.material).toBe(71)
+    expect(demolished.dungeon.tiles[veinTileId]).toMatchObject({ persistentNode: { type: 'gold_vein' }, facilityInstanceId: undefined })
+    expect(canBuildFacility(demolished, 'gold_mine', veinTileId).allowed).toBe(true)
   })
 })

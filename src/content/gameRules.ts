@@ -1,16 +1,19 @@
-import type { ResourceCost } from '../types/content'
-import { RESOURCE_IDS } from './resources/resources'
-
 export const gameRules = {
   core: {
     passiveRegenPerDay: 1,
   },
   excavation: {
-    cost: { [RESOURCE_IDS.material]: 10 } satisfies ResourceCost,
+    materialCostByDistance: [
+      { maxDistance: 3, amount: 10 },
+      { maxDistance: 6, amount: 15 },
+      { maxDistance: 9, amount: 20 },
+      { maxDistance: Number.POSITIVE_INFINITY, amount: 25 },
+    ],
     baseActionsPerDay: 2,
+    safeExcavations: 3,
   },
   world: {
-    generationVersion: 1,
+    generationVersion: 2,
   },
   maintenance: {
     unpaidEfficiencyMultiplier: 0.75,

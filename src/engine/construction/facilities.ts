@@ -25,6 +25,10 @@ export function canBuildFacility(state: GameState, facilityId: FacilityId, targe
   const currentTier = tierDefinitionById[state.currentTierId]?.level ?? 1
   if (currentTier < definition.requiredTier) return { allowed: false, reason: `Tier ${definition.requiredTier}에서 해금되는 시설입니다.` }
   if (!tile || tile.terrain !== 'floor' || !tile.revealed || tile.facilityInstanceId) return { allowed: false, reason: '공개된 빈 바닥에만 시설을 건설할 수 있습니다.' }
+  if (definition.requiredNodeType && tile.persistentNode?.type !== definition.requiredNodeType) {
+    return { allowed: false, reason: `${definition.name}은 ${definition.requiredNodeType} 노드에서만 건설할 수 있습니다.` }
+  }
+  if (tile.persistentNode && !definition.requiredNodeType) return { allowed: false, reason: '자원 노드에는 전용 시설만 건설할 수 있습니다.' }
   if (!checkConditions(state, definition.requirements)) return { allowed: false, reason: `${definition.name}의 건설 조건을 충족하지 못했습니다.` }
   if (!canAfford(state, definition.buildCost)) return { allowed: false, reason: `건설 비용이 부족합니다: ${formatResourceCost(definition.buildCost)}` }
   return { allowed: true }
@@ -64,7 +68,7 @@ export function buildFacility(state: GameState, facilityId: FacilityId, targetTi
   return applyEffect(nextState, {
     type: 'addLog',
     category: 'system',
-    message: `${definition.name} Lv.1을 건설했습니다. [${formatResourceCost(definition.buildCost)} 소모]`,
+    message: `${definition.name}${definition.showLevel === false ? '' : ' Lv.1'}을 건설했습니다. [${formatResourceCost(definition.buildCost)} 소모]`,
   }, now)
 }
 

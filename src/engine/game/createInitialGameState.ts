@@ -77,6 +77,7 @@ export function createInitialGameState(now = new Date(), randomSource: RandomSou
     },
     excavation: {
       actionsRemaining: gameRules.excavation.baseActionsPerDay,
+      totalCompleted: 0,
     },
     day: 1,
     resources: Object.fromEntries(

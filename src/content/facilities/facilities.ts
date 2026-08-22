@@ -27,6 +27,13 @@ export const facilityDefinitions: FacilityDefinition[] = [
     ], tags: ['production', 'labor', 'physical', 'material'], requirements: [],
   },
   {
+    id: 'gold_mine', name: '금광', shortName: '금광', description: '금맥을 따라 갱도를 내어 매일 골드를 생산하는 특수 시설입니다.',
+    role: '골드 생산', iconId: 'room_gold_mine', category: 'production', buildable: true, requiredTier: 1, buildCost: { material: 35 },
+    requiredNodeType: 'gold_vein', showLevel: false,
+    levels: [{ level: 1, dailyEffects: [{ type: 'addResource', resourceId: 'gold', amount: 5 }], staffSlots: 1, goldMaintenance: 0 }],
+    tags: ['production', 'node', 'gold'], requirements: [],
+  },
+  {
     id: 'fungus_farm', name: '균사 농장', shortName: '농장', description: '어둠에서도 자라는 균류를 재배합니다.',
     role: '식량 생산', iconId: 'room_fungus_farm', category: 'production', buildable: true, requiredTier: 1, buildCost: { material: 20 },
     levels: [

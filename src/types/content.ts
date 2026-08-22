@@ -113,6 +113,7 @@ export interface DiscoveryDefinition {
   description: string
   resolution: 'none' | 'one_shot' | 'persistent'
   persistentNodeType?: PersistentNodeType
+  revealWhenAdjacentFloor?: boolean
   generationWeight: number
 }
 
@@ -156,6 +157,8 @@ export interface FacilityDefinition {
   buildable: boolean
   requiredTier: number
   buildCost: ResourceCost
+  requiredNodeType?: PersistentNodeType
+  showLevel?: boolean
   levels: FacilityLevelDefinition[]
   tags: string[]
   requirements: ConditionDefinition[]

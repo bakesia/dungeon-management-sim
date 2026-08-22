@@ -131,6 +131,7 @@ export function validateContent(): void {
     if (facility.role.trim().length === 0) errors.push(`Facility "${facility.id}" has no role description.`)
     if (!['core', 'housing', 'production', 'storage', 'defense'].includes(facility.category)) errors.push(`Facility "${facility.id}" has invalid category "${facility.category}".`)
     if (!gameIconDefinitionById[facility.iconId]) errors.push(`Missing icon asset mapping "${facility.iconId}" for facility "${facility.id}".`)
+    if (facility.requiredNodeType && !persistentNodeTypes.has(facility.requiredNodeType)) errors.push(`Facility "${facility.id}" references unknown node type "${facility.requiredNodeType}".`)
     if (sortedLevels.some((level, index) => level !== index + 1)) errors.push(`Facility "${facility.id}" levels must be consecutive from 1.`)
     facility.requirements.forEach((condition) => validateCondition(condition, `facility "${facility.id}"`))
     validateCost(facility.buildCost, `facility "${facility.id}" buildCost`)
@@ -183,6 +184,9 @@ export function validateContent(): void {
       }
     } else if (discovery.persistentNodeType) {
       errors.push(`Non-persistent discovery "${discovery.id}" must not define a persistent node.`)
+    }
+    if (discovery.revealWhenAdjacentFloor && discovery.resolution !== 'persistent') {
+      errors.push(`Adjacent-reveal discovery "${discovery.id}" must be persistent.`)
     }
   })
 

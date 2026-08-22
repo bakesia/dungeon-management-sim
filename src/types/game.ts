@@ -46,6 +46,7 @@ export interface DungeonTile {
     discoveryId: DiscoveryId
     variant: number
     resolved: boolean
+    source?: 'excavation' | 'cavern'
   }
   persistentNode?: {
     type: PersistentNodeType
@@ -167,6 +168,7 @@ export interface GameState {
   }
   excavation: {
     actionsRemaining: number
+    totalCompleted: number
   }
   day: number
   resources: Record<ResourceId, number>

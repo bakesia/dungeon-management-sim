@@ -2,6 +2,7 @@ import type { EventDefinition } from '../../types/content'
 import { expandedEventDefinitions } from './expandedEvents'
 import { npcEventDefinitions } from './npcEvents'
 import { connectedEventDefinitions } from './connectedEvents'
+import { excavationEventDefinitions } from './excavationEvents'
 
 const baseEventDefinitions: EventDefinition[] = [
   {
@@ -146,6 +147,7 @@ export const eventDefinitions: EventDefinition[] = [
   ...baseEventDefinitions,
   ...expandedEventDefinitions,
   ...connectedEventDefinitions,
+  ...excavationEventDefinitions,
   ...npcEventDefinitions,
 ]
 

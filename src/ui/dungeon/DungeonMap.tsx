@@ -1,12 +1,11 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { facilityDefinitionById } from '../../content/facilities/facilities'
-import { gameRules } from '../../content/gameRules'
 import { resourceDefinitionById } from '../../content/resources/resources'
 import { tierDefinitionById } from '../../content/tiers/tiers'
-import { canUpgradeFacility } from '../../engine/construction/facilities'
+import { canBuildFacility, canUpgradeFacility } from '../../engine/construction/facilities'
 import { canRepairFacility, getRepairCost } from '../../engine/construction/repairFacility'
 import { getRoomConditionEfficiency } from '../../engine/construction/roomCondition'
-import { canExcavate, getExcavationCapacity, getTileMapState, type TileMapState } from '../../engine/dungeon/excavation'
+import { canExcavate, getExcavationCapacity, getExcavationCost, getTileMapState, type TileMapState } from '../../engine/dungeon/excavation'
 import { calculateFacilityProductionMultiplier, getFacilityLevel, getRoomAssignmentCount } from '../../engine/population/assignWorkers'
 import { formatResourceCost } from '../../engine/resources/resourceCosts'
 import type { EffectDefinition } from '../../types/content'
@@ -18,7 +17,6 @@ import { RaceIcon } from '../population/RaceIcon'
 import { raceDefinitionById } from '../../content/races/races'
 import { QuickAccess } from '../game/QuickAccess'
 import { getRoomDisplayName } from '../facilities/roomDisplay'
-import { discoveryDefinitionById } from '../../content/discoveries/discoveries'
 
 interface DungeonMapProps {
   state: GameState
@@ -56,6 +54,12 @@ function getTileLabel(mapState: TileMapState): string {
 
 function isBuildableFloor(tile: DungeonTile): boolean {
   return tile.terrain === 'floor' && tile.revealed && !tile.facilityInstanceId
+}
+
+function isFacilityBuildTarget(tile: DungeonTile, facility?: { requiredNodeType?: string }): boolean {
+  if (!isBuildableFloor(tile)) return false
+  if (facility?.requiredNodeType) return tile.persistentNode?.type === facility.requiredNodeType
+  return !tile.persistentNode
 }
 
 function describeEffects(effects: EffectDefinition[], efficiency = 1): string {
@@ -97,8 +101,12 @@ export function DungeonMap({
   const selectedMapState = selectedTile ? getTileMapState(state, selectedTile) : undefined
   const selectedExcavationCheck = selectedTile ? canExcavate(state, selectedTile.id) : undefined
   const selectedFacility = selectedRoom ? facilityDefinitionById[selectedRoom.definitionId] : undefined
+  const selectedHasGoldVein = selectedTile?.persistentNode?.type === 'gold_vein' || selectedTile?.discovery?.discoveryId === 'gold_vein'
   const selectedLevel = selectedRoom ? getFacilityLevel(selectedRoom) : undefined
   const buildFacility = buildModeFacilityId ? facilityDefinitionById[buildModeFacilityId] : undefined
+  const goldMineBuildCheck = selectedTile?.persistentNode?.type === 'gold_vein' && !selectedRoom
+    ? canBuildFacility(state, 'gold_mine', selectedTile.id)
+    : undefined
   const selectedEfficiency = selectedRoom
     ? calculateFacilityProductionMultiplier(state, selectedRoom) * getRoomConditionEfficiency(selectedRoom)
     : 1
@@ -115,7 +123,7 @@ export function DungeonMap({
 
   const selectTile = (tile: DungeonTile) => {
     setSelectedTileId(tile.id)
-    if (buildModeFacilityId && isBuildableFloor(tile) && onBuild(buildModeFacilityId, tile.id)) onCancelBuild()
+    if (buildModeFacilityId && isFacilityBuildTarget(tile, buildFacility) && onBuild(buildModeFacilityId, tile.id)) onCancelBuild()
   }
 
   return (
@@ -138,21 +146,27 @@ export function DungeonMap({
             const facility = room ? facilityDefinitionById[room.definitionId] : undefined
             const facilityName = room ? getRoomDisplayName(state, room) : undefined
             const mapState = getTileMapState(state, tile)
-            const isBuildTarget = Boolean(buildModeFacilityId && isBuildableFloor(tile))
+            const isBuildTarget = Boolean(buildModeFacilityId && isFacilityBuildTarget(tile, buildFacility))
+            const hasGoldVein = tile.persistentNode?.type === 'gold_vein' || tile.discovery?.discoveryId === 'gold_vein'
+            const cavernReveal = tile.discovery?.source === 'cavern'
+            const tileName = facilityName ?? (hasGoldVein ? tile.terrain === 'rock' ? '금맥 암반' : '금맥' : statusNames[mapState])
             return (
               <button
-                className={`dungeon-tile dungeon-tile--${mapState}${room?.condition === 'damaged' ? ' is-damaged' : ''}${isSelected ? ' is-selected' : ''}${isBuildTarget ? ' is-build-target' : ''}`}
+                className={`dungeon-tile dungeon-tile--${mapState}${room?.condition === 'damaged' ? ' is-damaged' : ''}${isSelected ? ' is-selected' : ''}${isBuildTarget ? ' is-build-target' : ''}${hasGoldVein ? ' has-gold-vein' : ''}${cavernReveal ? ' is-cavern-reveal' : ''}`}
+                style={cavernReveal ? { '--reveal-delay': `${tile.discovery!.variant % 4 * 45}ms` } as CSSProperties : undefined}
                 type="button"
                 key={tile.id}
                 onClick={() => selectTile(tile)}
                 aria-pressed={isSelected}
-                aria-label={`${tile.coordinate.x}, ${tile.coordinate.y}: ${facilityName ?? statusNames[mapState]}`}
-                title={facilityName ?? statusNames[mapState]}
+                aria-label={`${tile.coordinate.x}, ${tile.coordinate.y}: ${tileName}`}
+                title={tileName}
               >
                 {facility && room ? <>
                   <GameIcon iconId={facility.iconId} size={38} />
-                  {facility.category !== 'core' && <span className="dungeon-tile__level">LV.{room.level}</span>}
-                </> : <span className="dungeon-tile__name">{getTileLabel(mapState)}</span>}
+                  {facility.category !== 'core' && facility.showLevel !== false && <span className="dungeon-tile__level">LV.{room.level}</span>}
+                </> : hasGoldVein
+                  ? <GameIcon iconId="node_gold_vein" label="금맥" size={38} />
+                  : <span className="dungeon-tile__name">{getTileLabel(mapState)}</span>}
                 {room?.condition === 'damaged' && <span className="dungeon-tile__condition">손상</span>}
               </button>
             )
@@ -167,14 +181,13 @@ export function DungeonMap({
             ? <GameIcon iconId={selectedFacility.iconId} label={selectedFacility.name} size={42} className="tile-inspector__icon" />
             : <span className={`status-gem status-gem--${selectedMapState}`} />}
           <div>
-            <p>{selectedRoom ? getRoomDisplayName(state, selectedRoom) : selectedFacility?.name ?? (selectedMapState ? statusNames[selectedMapState] : '알 수 없는 타일')}{selectedRoom ? ` · Lv.${selectedRoom.level}` : ''}</p>
+            <p>{selectedRoom ? getRoomDisplayName(state, selectedRoom) : selectedHasGoldVein ? selectedTile.terrain === 'rock' ? '금맥 암반' : '금맥' : selectedFacility?.name ?? (selectedMapState ? statusNames[selectedMapState] : '알 수 없는 타일')}{selectedRoom && selectedFacility?.showLevel !== false ? ` · Lv.${selectedRoom.level}` : ''}</p>
             <span>좌표 {selectedTile.coordinate.x}, {selectedTile.coordinate.y}</span>
           </div>
         </div>
         <div className="tile-inspector__content">
-          <p>{selectedFacility?.description ?? (selectedMapState === 'excavatable-rock' ? '공개된 바닥과 연결된 암반입니다. 굴착 명령으로 공간을 확보할 수 있습니다.' : selectedMapState === 'revealed-floor' ? '건설 메뉴에서 시설을 선택한 뒤 이 공간을 클릭하십시오.' : '아직 접근 경로가 확보되지 않은 암반입니다.')}</p>
-          {selectedTile.terrain === 'rock' && <span className="cost-label">굴착 비용 · {formatResourceCost(gameRules.excavation.cost)} · 오늘 남은 굴착 {state.excavation.actionsRemaining}</span>}
-          {selectedTile.discovery && selectedTile.discovery.discoveryId !== 'empty' && <span className="discovery-label">발견 · {discoveryDefinitionById[selectedTile.discovery.discoveryId].name}{selectedTile.persistentNode ? ' · 영구 노드' : ' · 해결됨'}</span>}
+          <p>{selectedFacility?.description ?? (selectedHasGoldVein ? selectedTile.terrain === 'rock' ? '금맥이 드러난 암반입니다. 실제로 굴착해야 금광을 건설할 수 있습니다.' : '금광을 건설할 수 있는 영구 금맥입니다. 일반 시설은 건설할 수 없습니다.' : selectedMapState === 'excavatable-rock' ? '공개된 바닥과 연결된 암반입니다. 굴착 명령으로 공간을 확보할 수 있습니다.' : selectedMapState === 'revealed-floor' ? '건설 메뉴에서 시설을 선택한 뒤 이 공간을 클릭하십시오.' : '아직 접근 경로가 확보되지 않은 암반입니다.')}</p>
+          {selectedTile.terrain === 'rock' && <span className="cost-label">굴착 비용 · {formatResourceCost(getExcavationCost(selectedTile.coordinate))} · 오늘 남은 굴착 {state.excavation.actionsRemaining}</span>}
           {selectedTile.terrain === 'rock' && !selectedExcavationCheck?.allowed && <span className="excavation-reason">{selectedExcavationCheck?.reason}</span>}
           {selectedRoom && selectedLevel && (
             <div className="facility-stats">
@@ -185,6 +198,7 @@ export function DungeonMap({
               {selectedLevel.populationCapacity && <span>인구 수용 · +{selectedLevel.populationCapacity}</span>}
               {selectedLevel.defense && <span>방어력 · {selectedLevel.defense}</span>}
               {Boolean(selectedLevel.staffSlots) && <span>현재 배치 · {getRoomAssignmentCount(selectedRoom)} / {selectedLevel.staffSlots}</span>}
+              {selectedFacility?.requiredNodeType && <span>특수 시설 · 금맥 위에 건설</span>}
               <span>배치·종족·상태 보정 · {Math.round(selectedEfficiency * 100)}%</span>
               {capacityWarnings.map((warning) => <span className="capacity-warning" key={warning}>{warning}</span>)}
             </div>
@@ -210,7 +224,10 @@ export function DungeonMap({
           {selectedTile.terrain === 'rock' && (
             <button className="primary-button" type="button" disabled={!selectedExcavationCheck?.allowed} onClick={() => onExcavate(selectedTile.id)}>굴착</button>
           )}
-          {isBuildableFloor(selectedTile) && <button className="primary-button" type="button" onClick={() => onOpenBuildMenu(selectedTile.id)}>건설 메뉴 열기</button>}
+          {isBuildableFloor(selectedTile) && !selectedTile.persistentNode && <button className="primary-button" type="button" onClick={() => onOpenBuildMenu(selectedTile.id)}>건설 메뉴 열기</button>}
+          {goldMineBuildCheck && <button className="primary-button" type="button" disabled={!goldMineBuildCheck.allowed} onClick={() => onBuild('gold_mine', selectedTile.id)}>
+            금광 건설 · {formatResourceCost(facilityDefinitionById.gold_mine.buildCost)}
+          </button>}
           {selectedRoom && selectedFacility?.buildable && (
             <>
               {selectedRoom.condition === 'damaged' && (
@@ -218,9 +235,9 @@ export function DungeonMap({
                   수리 · {formatResourceCost(getRepairCost(state, selectedRoom.instanceId))}
                 </button>
               )}
-              <button className="primary-button" type="button" disabled={!canUpgradeFacility(state, selectedRoom.instanceId).allowed} onClick={() => onUpgrade(selectedRoom.instanceId)}>
+              {selectedFacility.showLevel !== false && <button className="primary-button" type="button" disabled={!canUpgradeFacility(state, selectedRoom.instanceId).allowed} onClick={() => onUpgrade(selectedRoom.instanceId)}>
                 {selectedLevel?.upgradeCost ? `업그레이드 · ${formatResourceCost(selectedLevel.upgradeCost)}` : '최대 레벨'}
-              </button>
+              </button>}
               <button className="secondary-button secondary-button--danger" type="button" onClick={() => onDemolish(selectedRoom.instanceId)}>철거</button>
             </>
           )}
